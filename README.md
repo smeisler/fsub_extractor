@@ -1,5 +1,5 @@
 # _fsub-extractor_
-This is an application for extracing **F*unctional **Su**bcomponents of **Bundles**.
+This is an application for extracing **F**unctional **Su**bcomponents of **Bundles**.
 
 ## License information
 ([more information on the MIT license](https://en.wikipedia.org/wiki/MIT_License))
