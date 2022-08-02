@@ -16,14 +16,12 @@ folder_subj = op.join(folder_main, subjid)
 
 fn_output_fixedPoints = op.join(folder_subj, "tracks_1_2_2mm_fixedPoints-" + str(num_points) + "_output_tcksample.txt")
 
-table_skiprow1 = pd.read_csv(fn_output_fixedPoints, sep = " ", skiprows=1)   # ?????? table n rows is not correct!!!
-table_noskip = pd.read_csv(fn_output_fixedPoints, sep = " ")
-
-print()
+table = pd.read_csv(fn_output_fixedPoints, sep = " ", header = None, skiprows=1)
 
 avg_perPoint = table.mean(axis = 0)  # each row is a streamline, average across streamlines
 
 ## Plot:
+# plot averaged value per point:
 fig, ax = plt.subplots()
 ax.plot(avg_perPoint)
 ax.set_ylabel(scalar_name)
@@ -31,9 +29,10 @@ ax.legend()
 
 #plt.show()
 
-fig, ax = plt.subplots()
-table.shape[0]
-#for i in np.arange(0,table.shape[0])
-ax.plot()
+# plot all streamlines:
+# fig, ax = plt.subplots()
+# table.shape[0]
+# #for i in np.arange(0,table.shape[0])
+# ax.plot()
 
 print()
