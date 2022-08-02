@@ -1,0 +1,4 @@
+{
+	"classification":	"testdata/classification.mat",
+	"track":	"testdata/track.tck"
+}

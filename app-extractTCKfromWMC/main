@@ -1,0 +1,20 @@
+#!/bin/bash
+#PBS -l nodes=1:ppn=4,vmem=30gb,walltime=1:00:00
+#PBS -N app-extract-tracts-tck
+
+# reformat classification structure
+[ ! -f index.csv ] && time singularity exec -e docker://brainlife/dipy:1.4.1 ./reformat_classification.py
+
+# extract tracts
+[ ! -d ./tcks ] && time singularity exec -e docker://brainlife/mrtrix3:3.0.3 ./seperate-tracts.sh
+
+if [ ! -f ./tcks/*.tck ]; then
+	echo "something went wrong. check derivatives and logs"
+	exit 1
+else
+	echo "complete!"
+	rm -rf *.csv
+	exit 0
+fi
+
+
