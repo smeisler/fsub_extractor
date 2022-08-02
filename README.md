@@ -26,6 +26,23 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+## Install form GitHub
+```
+foo@bar:~$ git clone https://github.com/smeisler/fsub-extractor.git
+foo@bar:~$ cd fsub-extractor
+foo@bar:~$ pip install .   # for end user
+# you may remove the original source code if you are an end user:
+foo@bar:~$ cd ..
+foo@bar:~$ rm -r fsub-extractor
+```
+
+If you are a developer, and if there is any update in the source code locally, you may update the installation with:
+```
+# Supporse you're in root directory of fsub-extractor source code:
+foo@bar:~$ pip install -e .    # for developer to update
+```
+
+
 ## Contributors
 <!-- readme: contributors -start -->
 <table>
