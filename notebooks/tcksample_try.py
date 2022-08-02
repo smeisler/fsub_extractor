@@ -1,10 +1,39 @@
 # get the averaged value
 
+import os.path as op
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+
 
 subjid="subj01"
-folder_main="../../data"
-folder_subj="${folder_main}/${subjid}"
+num_points = 100
+scalar_name="FA"
 
-fn_scalar_image="${folder_subj}/fa.nii.gz"
-fn_streamlines="${folder_subj}/tracks_1_2_2mm.tck"
-fn_output = fn_streamlines.replace("bananas", "apples")
+folder_main="/home/chenying/Desktop/fsub_extractor/data"
+folder_subj = op.join(folder_main, subjid)
+
+fn_output_fixedPoints = op.join(folder_subj, "tracks_1_2_2mm_fixedPoints-" + str(num_points) + "_output_tcksample.txt")
+
+table_skiprow1 = pd.read_csv(fn_output_fixedPoints, sep = " ", skiprows=1)   # ?????? table n rows is not correct!!!
+table_noskip = pd.read_csv(fn_output_fixedPoints, sep = " ")
+
+print()
+
+avg_perPoint = table.mean(axis = 0)  # each row is a streamline, average across streamlines
+
+## Plot:
+fig, ax = plt.subplots()
+ax.plot(avg_perPoint)
+ax.set_ylabel(scalar_name)
+ax.legend()
+
+#plt.show()
+
+fig, ax = plt.subplots()
+table.shape[0]
+#for i in np.arange(0,table.shape[0])
+ax.plot()
+
+print()
