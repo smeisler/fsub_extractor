@@ -68,7 +68,7 @@ def main():
         out_dir=args.out_dir,
         out_prefix=args.out_prefix,
         scalar=args.scalar,
-        search_dist=args.search_dist,
+        search_dist=str(args.search_dist),
     )
 
 
@@ -97,10 +97,10 @@ def merge_rois(roi1, roi2, out_file):
         err_merg = None
 
     else:
-        labelled_roi2 = roi2.remove_suffix(".nii.gz") + "_labelled.nii.gz"
+        labelled_roi2 = roi2.removesuffix(".nii.gz") + "_labelled.nii.gz"
         mrcalc_path = find_program("mrcalc")
         mult_proc = subprocess.Popen(
-            [mrcalc_path, roi2, 2, "-mult", labelled_roi2],
+            [mrcalc_path, roi2, "2", "-mult", labelled_roi2],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -109,7 +109,7 @@ def merge_rois(roi1, roi2, out_file):
             raise Exception(err_mult)
 
         merg_proc = subprocess.Popen(
-            [mrcalc_path, roi1, labelled_roi2, out_file, "-add"],
+            [mrcalc_path, roi1, labelled_roi2, "-add", out_file],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -165,7 +165,7 @@ def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist):  # nodes?
     return [err_tck2conn, err_conn2tck]
 
 
-def extractor(tck_file, roi1, roi2, out_dir, out_prefix, scalar):
+def extractor(tck_file, roi1, roi2, out_dir, out_prefix, scalar, search_dist):
     # [TODO] add docs
 
     # Check for assertion errors [TODO]
@@ -174,10 +174,12 @@ def extractor(tck_file, roi1, roi2, out_dir, out_prefix, scalar):
 
     # Create atlas-like file if multiple ROIs avaialble
     if roi2 == None:
+        print("Only 1 ROI found")
         rois_in = roi1
     else:
-        roi1_basename = op.basename(roi1).remove_suffix(".nii.gz")
-        roi2_basename = op.basename(roi2).remove_suffix(".nii.gz")
+        print("2 ROIs found, merging them")
+        roi1_basename = op.basename(roi1).removesuffix(".nii.gz")
+        roi2_basename = op.basename(roi2).removesuffix(".nii.gz")
         [rois_in, err1, err2] = merge_rois(
             roi1,
             roi2,
@@ -186,4 +188,5 @@ def extractor(tck_file, roi1, roi2, out_dir, out_prefix, scalar):
     # [TODO] check validity of ROI file
 
     # Run MRtrix commands
+    print("Extracing the Sub-Bundle")
     cmd_errs = extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist)
