@@ -1,0 +1,30 @@
+# This is copied from qsiprep_build: 
+# https://github.com/PennLINC/qsiprep_build/blob/main/Dockerfile_Miniconda
+
+FROM nvidia/cuda:10.2-runtime-ubuntu18.04
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+                    ca-certificates \
+                    curl \
+                    libblas-dev \
+                    liblapack-dev \
+                    build-essential \
+                    libgomp1 
+
+# Create a shared $HOME directory
+RUN useradd -m -s /bin/bash -G users qsiprep
+WORKDIR /home/qsiprep
+ENV HOME="/home/qsiprep"
+
+
+# Installing and setting up miniconda
+RUN curl -sSLO https://repo.anaconda.com/miniconda/Miniconda3-py38_4.10.3-Linux-x86_64.sh && \
+    bash Miniconda3-py38_4.10.3-Linux-x86_64.sh -b -p /usr/local/miniconda && \
+    rm Miniconda3-py38_4.10.3-Linux-x86_64.sh
+
+RUN /usr/local/miniconda/bin/conda install -y numpy scipy \
+    && /usr/local/miniconda/bin/pip install dmri-amico
+
+RUN mkdir -p ${HOME}/.dipy \
+    && /usr/local/miniconda/bin/python -c "import amico; amico.core.setup()"
