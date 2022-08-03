@@ -1,0 +1,10 @@
+LICENSE
+README.md
+setup.cfg
+setup.py
+fsub-extractor/__init__.py
+fsub-extractor/main.py
+fsub_extractor.egg-info/PKG-INFO
+fsub_extractor.egg-info/SOURCES.txt
+fsub_extractor.egg-info/dependency_links.txt
+fsub_extractor.egg-info/top_level.txt
