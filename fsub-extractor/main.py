@@ -49,7 +49,8 @@ def get_parser():
         default=None,
     )
     parser.add_argument(
-        "--search_dist", "--search-dist",
+        "--search_dist",
+	"--search-dist",
         help="Distance in mm to search ahead of streamlines for ROIs",
         default=4,
     )
