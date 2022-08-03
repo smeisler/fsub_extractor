@@ -47,7 +47,7 @@ def get_parser():
         help="Scalar map(s) to sample streamlines on (.nii.gz)",
         default=None)
     parser.add_argument(
-        "--search_dist", "--search-dist"
+        "--search_dist", "--search-dist",
         help="Distance in mm to search ahead of streamlines for ROIs",
         default=4)
     return parser
