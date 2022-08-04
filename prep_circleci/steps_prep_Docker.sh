@@ -17,3 +17,6 @@ echo $cmd
 cmd="docker build -t chenyingzhao/fsub_extractor_deps:${tag_version} ."
 echo $cmd
 $cmd
+
+cmd="docker push chenyingzhao/fsub_extractor_deps:${tag_version}"
+echo $cmd
