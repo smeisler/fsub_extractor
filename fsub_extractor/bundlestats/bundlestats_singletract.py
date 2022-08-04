@@ -44,8 +44,7 @@ Outputs:
   distribution among streamline means) (.png)
 '''
 
-
-TCK_FILEPATH = '/Users/alicja/Documents/Neurohackademy22/fsub/subj01/extracted.tck' #this will be pased from the main
+TCK_FILEPATH = '/Users/alicja/Documents/Neurohackademy22/fsub/subj01/extracted.tck'  # this will be pased from the main
 TCK_NAME = TCK_FILEPATH.split('/')[-1]
 MAINPATH = TCK_FILEPATH.split(TCK_NAME)[0]
 
@@ -55,6 +54,8 @@ statfiles = ['/Users/alicja/Documents/Neurohackademy22/fsub/subj01/fa.nii.gz',
              '/Users/alicja/Documents/Neurohackademy22/fsub/subj01/rd.nii.gz']
 statnames = ['fa', 'md', 'rd']
 stats = dict(zip(statnames, statfiles))
+
+
 # [TODO] make it into arguments
 
 
@@ -64,8 +65,15 @@ def extract_means(filename):
 	:param filename: a path with the filename to the file containing the values, output of the tcksample command
 	:return: a list with the values in floating point format
 	"""
-	with open(filename) as f:
-		return [float(val) for val in f.read().splitlines()[1].split(' ')]
+	try:
+		with open(filename) as f:
+			return [float(val) for val in f.read().splitlines()[1].split(' ')]
+	except:
+		print('Means could not be extracted:', filename)
+
+
+def test_extract_means():
+	assert extract_means('test/test_extract_means.txt') == [0.425, 0.124, 0.6723, 0.124, 0.136764, 0.234123, 0.45134]
 
 
 def create_statfiles(tck_file, stat):
@@ -87,6 +95,13 @@ def create_statfiles(tck_file, stat):
 	                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	_, err_tcksample_proc = tcksample_proc.communicate()
 	return outfile
+
+
+def test_create_statfiles():
+	tck_file = ['test_tract.tck', op.join('test', 'test_tract.tck')]
+	stat_file = ['test_fa.nii.gz', op.join('test', 'test_fa.nii.gz')]
+	assert op.exists(create_statfiles(tck_file, stat_file))
+
 
 def process_tract(stats, plot=True):
 	"""
@@ -111,10 +126,10 @@ def process_tract(stats, plot=True):
 		stat_dict[stat] = extract_means(infile)
 
 	# gather the data into a single dataframe
-	stat_df = pd.DataFrame(stat_dict) # converts to dataframe
-	stat_df.reset_index(inplace=True) # gives each streamline a number
-	stat_df = stat_df.rename(columns={'index': 'streamline'}) # renames the column to 'streamline'
-	stat_df['streamline'] = stat_df['streamline'] + 1 #change convention so streamline numbering starts at 1
+	stat_df = pd.DataFrame(stat_dict)  # converts to dataframe
+	stat_df.reset_index(inplace=True)  # gives each streamline a number
+	stat_df = stat_df.rename(columns={'index': 'streamline'})  # renames the column to 'streamline'
+	stat_df['streamline'] = stat_df['streamline'] + 1  # change convention so streamline numbering starts at 1
 
 	# make a tidy dataframe 'Stats' with the values for all the statistics - not used at the moment, might be used later
 	stat_melted = pd.melt(stat_df,
@@ -143,18 +158,23 @@ def process_tract(stats, plot=True):
 	summaryfile = op.join(MAINPATH, summaryname)
 
 	with open(summaryfile, 'w+') as fp:
-		# column names
-		fp.write('Stat\tMean\tSD\n')
-		# contents
-		for stat in stats:
-			mean_stat = np.mean(stat_df[stat])
-			sd_stat = np.std(stat_df[stat])
-			fp.write(stat + '\t' + str(mean_stat) + '\t' + str(sd_stat) + '\n')
-		print('Summary statistics file created: ', summaryfile)
+		try:
+			# column names
+			fp.write('Stat\tMean\tSD\n')
+			# contents
+			for stat in stats:
+				mean_stat = np.mean(stat_df[stat])
+				sd_stat = np.std(stat_df[stat])
+				fp.write(stat + '\t' + str(mean_stat) + '\t' + str(sd_stat) + '\n')
+		except:
+			print('Count not create: ', summaryfile)
+		else:
+			print('Summary statistics file created: ', summaryfile)
 
 	if plot:
 		# plot the values and statistics
 		for stat in stats:
+
 			sns.set_theme(style="whitegrid")
 
 			pal = 'viridis'
@@ -199,10 +219,12 @@ def process_tract(stats, plot=True):
 			# save to a file
 			figfile = op.join(MAINPATH, TCK_NAME.split('.')[0] + '_' + stat + '_visuals.png')
 			plt.savefig(figfile, dpi=300)
-			print('Figure created: ', figfile)
 
 			# don't show the plot
 			plt.close()
+			print('Figure created: ', figfile)
+
+
 
 
 
@@ -213,4 +235,4 @@ except:
 else:
 	print('Tract processed successfully.')
 
-#%%
+# %%
