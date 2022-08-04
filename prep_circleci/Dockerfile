@@ -12,6 +12,9 @@ COPY --from=build_mrtrix3 /opt/mrtrix3-latest /opt/mrtrix3-latest
 ENV PATH="$PATH:/opt/mrtrix3-latest/bin" \
     MRTRIX3_DEPS="bzip2 ca-certificates curl libpng16-16 libblas3 liblapack3"
 
+# IF MINICONDA DOES NOT WORK, EXCLUDE IT FOR NOW (SO FAR THE FUNCTIONS DO NOT USE DIPY...)
+
+
 ## Python, compiled dependencies
 COPY --from=build_miniconda /usr/local/miniconda /usr/local/miniconda
 COPY --from=build_miniconda /home/qsiprep/.dipy /home/qsiprep/.dipy
