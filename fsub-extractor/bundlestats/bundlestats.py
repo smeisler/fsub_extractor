@@ -1,13 +1,44 @@
+#####################################################################################
+#                                                                                   #
+#             Bundle stats                                                          #
+#   A part of ex-tract, a package for functionally defined white matter tracts      #
+#   This module extracts average statistics (e.g. FA, MD) from the segmented        #
+#   white matter streamlines.                                                       #
+#                                                                                   #
+#   Author: Alicja Olszewska, Laboratory of Brain Imaging,                          #
+#           Nencki Institute of Experimental Biology                                #
+#                                                                                   #
+#   Neurohackademy 2022, 27.07 - 05.08.2022, FSUB-extractor team                    #
+#                                                                                   #
+#####################################################################################
+
+# data analysis
 import numpy as np
 import pandas as pd
+
+# file handling
 import os
 import os.path as op
 
+# visualisations
 import matplotlib.pyplot as plt
 import seaborn as sns
 import ptitprince as pt
 
+# calling the mrtrix processes
 import subprocess
+
+'''
+Input: 
+- a folder containing:
+-- .tck files with extracted streamlines
+-- .nii.gz files with statistics to be extracted (e.g. FA, MD)
+Outputs:
+- stats per streamline in raw (.txt), tidy and "excel" forms (.tsv)
+- summary statistics for each statistic (.tsv)
+- visual representation of the tract statistics (mean per streamline, mean & sd for extracted tract,
+  distribution among streamline means) (.png)
+'''
 
 
 # path where all subjects live
@@ -65,12 +96,12 @@ def create_statfiles(sub, tck_file, stat):
 
 	# create a name for the output file
 	outname = tck_file[0].split('.')[0] + '_' + stat[0] + '_stats.txt'
+	# path to the output file
 	outfile = op.join(path_allsub, sub, outname)
 	tcksample_path = find_program('tcksample')
 	tcksample_proc = subprocess.Popen([tcksample_path, tck_file[1], stat[1], outfile, '-stat_tck', 'mean'],
 	                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	_, err_tcksample_proc = tcksample_proc.communicate()
-	print('outfile:', outfile)
 	return outfile
 
 def process_subject(subject, stats, plot=True):
@@ -194,3 +225,5 @@ def process_subject(subject, stats, plot=True):
 
 for sub in subjects:
 	process_subject(sub, stats)
+
+#%%
