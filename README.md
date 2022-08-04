@@ -66,13 +66,6 @@ SOFTWARE.
             <br />
             <sub><b>Drew E. Winters</b></sub>
         </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/mckenziephagen">
-            <img src="https://avatars.githubusercontent.com/u/35019015?v=4" width="100;" alt="mckenziephagen"/>
-            <br />
-            <sub><b>McKenzie Paige Hagen</b></sub>
-        </a>
     </td></tr>
 </table>
 <!-- readme: contributors -end -->
