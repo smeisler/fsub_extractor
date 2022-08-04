@@ -67,11 +67,11 @@ def extractor(tck_file, roi1, roi2, out_dir, out_prefix, scalar, search_dist):
 
     # Create atlas-like file if multiple ROIs avaialble
     if roi2 == None:
-        print("Only 1 ROI found")
+        print("1 ROI passed in")
         two_rois = False
         rois_in = roi1
     else:
-        print("2 ROIs found, merging them")
+        print("2 ROIs passed in, merging them")
         two_rois = True
         roi1_basename = op.basename(roi1).removesuffix(".nii.gz")
         roi2_basename = op.basename(roi2).removesuffix(".nii.gz")

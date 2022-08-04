@@ -73,12 +73,10 @@ def merge_rois(roi1, roi2, out_file):
 
 def t1_to_gmwmi(anat, outpath_base):
     # Check for T1 file vs FreeSurfer directory
-    anat_path_split = op.splitext(anat)
-    file_extension = anat_path_split[-1]
-    if op.isdir(anat+'/surf'):
+    if op.isdir(op.join(anat,'surf')):
          print('FreeSurfer input detected: Using 5ttgen HSVS algorithm to generate GMWMI')
          fivett_algo = 'hsvs'
-    elif file_extension == '.nii.gz':
+    elif anat[-7:] == '.nii.gz' or anat[-4:] == '.nii' or anat[-4:] == '.mif':
          print('T1 image detected: Using default FSL 5ttgen algorithm to generate GMWMWI')
          fivett_algo = 'fsl'
     else:
@@ -104,7 +102,7 @@ def t1_to_gmwmi(anat, outpath_base):
         )
     _, err_gmwmi = mult_proc.communicate()
     print('Finished creating GMWMI')
-    return None
+    return [err_5tt, err_gmwmi]
 
 def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist, two_rois):  # nodes?
     # [TODO] docs
