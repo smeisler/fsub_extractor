@@ -33,7 +33,7 @@ RUN apt-get update \
 RUN conda install -c conda-forge fury
 
 ## Install datalad etc:
-# [TODO]
+RUN conda install -c conda-forge datalad git git-annex
 
 ## Install antspy:
 # RUN pip install antspyx   # is this correct ????????????
