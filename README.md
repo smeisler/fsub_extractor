@@ -1,6 +1,22 @@
 # _fsub-extractor_
 This is an application for extracing **F**unctional **Su**bcomponents of **B**undles.
 
+## Install from GitHub
+```
+foo@bar:~$ git clone https://github.com/smeisler/fsub-extractor.git
+foo@bar:~$ cd fsub-extractor
+foo@bar:~$ pip install .   # for end user
+# you may remove the original source code if you are an end user:
+foo@bar:~$ cd ..
+foo@bar:~$ rm -r fsub-extractor
+```
+
+If you are a developer, and if there is any update in the source code locally, you may update the installation with:
+```
+# Supporse you're in root directory of fsub-extractor source code:
+foo@bar:~$ pip install -e .    # for developer to update
+```
+
 ## License information
 ([more information on the MIT license](https://en.wikipedia.org/wiki/MIT_License))
 
@@ -26,23 +42,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-## Install form GitHub
-```
-foo@bar:~$ git clone https://github.com/smeisler/fsub-extractor.git
-foo@bar:~$ cd fsub-extractor
-foo@bar:~$ pip install .   # for end user
-# you may remove the original source code if you are an end user:
-foo@bar:~$ cd ..
-foo@bar:~$ rm -r fsub-extractor
-```
-
-If you are a developer, and if there is any update in the source code locally, you may update the installation with:
-```
-# Supporse you're in root directory of fsub-extractor source code:
-foo@bar:~$ pip install -e .    # for developer to update
-```
-
-
 ## Contributors
 <!-- readme: contributors -start -->
 <table>
@@ -59,6 +58,13 @@ foo@bar:~$ pip install -e .    # for developer to update
             <img src="https://avatars.githubusercontent.com/u/20084724?v=4" width="100;" alt="zhao-cy"/>
             <br />
             <sub><b>Chenying Zhao</b></sub>
+        </a>
+    </td>
+    <td align="center">
+        <a href="https://github.com/drewwint">
+            <img src="https://avatars.githubusercontent.com/u/53614162?v=4" width="100;" alt="drewwint"/>
+            <br />
+            <sub><b>Drew E. Winters</b></sub>
         </a>
     </td></tr>
 </table>
