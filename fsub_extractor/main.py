@@ -50,7 +50,7 @@ def get_parser():
     )
     parser.add_argument(
         "--search_dist",
-	"--search-dist",
+        "--search-dist",
         help="Distance in mm to search ahead of streamlines for ROIs",
         default=4,
     )
@@ -59,8 +59,10 @@ def get_parser():
 
 def main():
 
+    # Parse arguments and run the main code
     parser = get_parser()
     args = parser.parse_args()
+
     main = extractor(
         tck_file=args.tck_file,
         roi1=args.roi1,
@@ -120,7 +122,7 @@ def merge_rois(roi1, roi2, out_file):
     return out_file, err_mult, err_merg
 
 
-def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist):  # nodes?
+def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist, two_rois):  # nodes?
     # [TODO] docs
     # Run MRtrix CLI
     ### tck2connectome
@@ -131,10 +133,12 @@ def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist):  # nodes?
             tck_file,
             rois_in,
             outpath_base + "connectome.txt",
-            "-assignment_forward_search",
-            search_dist,
+            #"-assignment_forward_search",
+            #search_dist,
+            "-assignment_all_voxels",
             "-out_assignments",
             outpath_base + "assignments.txt",
+            "-force"
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -144,7 +148,15 @@ def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist):  # nodes?
 
     ### connectome2tck
     connectome2tck_path = find_program("connectome2tck")
-    # [TODO] FIX NODES BASED ON 1 OR 2 ROI INPUTS
+    # Change connectome2tck arguments based on single node or pairwise nodes
+    if two_rois:
+        nodes = "1,2"
+        extra_args = ["-exclusive",
+            "-files",
+            "single"]
+    else:
+        nodes = "1"
+        extra_args = ["-keep_self"]
     conn2tck_proc = subprocess.Popen(
         [
             connectome2tck_path,
@@ -152,10 +164,8 @@ def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist):  # nodes?
             outpath_base + "assignments.txt",
             outpath_base + "extracted.tck",
             "-nodes",
-            "1,2",
-            "-exclusive",
-            "-files single",
-        ],
+            nodes
+        ] + extra_args,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
@@ -175,9 +185,11 @@ def extractor(tck_file, roi1, roi2, out_dir, out_prefix, scalar, search_dist):
     # Create atlas-like file if multiple ROIs avaialble
     if roi2 == None:
         print("Only 1 ROI found")
+        two_rois = False
         rois_in = roi1
     else:
         print("2 ROIs found, merging them")
+        two_rois = True
         roi1_basename = op.basename(roi1).removesuffix(".nii.gz")
         roi2_basename = op.basename(roi2).removesuffix(".nii.gz")
         [rois_in, err1, err2] = merge_rois(
@@ -189,4 +201,5 @@ def extractor(tck_file, roi1, roi2, out_dir, out_prefix, scalar, search_dist):
 
     # Run MRtrix commands
     print("Extracing the Sub-Bundle")
-    cmd_errs = extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist)
+    cmd_errs = extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist, two_rois)
+    #print(cmd_errs)
