@@ -38,12 +38,13 @@ RUN conda install -c conda-forge fury
 ## Install antspy:
 # RUN pip install antspyx   # is this correct ????????????
 
-## Install the current python pacakge - this is not needed for Dockerfile for CIRCLECI !!!!!
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git
+# ## Install the current python pacakge - this is not needed for Dockerfile for CIRCLECI !!!!!
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#     git
 
-RUN git clone https://github.com/smeisler/fsub_extractor.git
-WORKDIR fsub_extractor
-#RUN git checkout ${commitSHA_confixel}
-RUN pip install .
-WORKDIR /
+# RUN git clone https://github.com/smeisler/fsub_extractor.git
+# WORKDIR fsub_extractor
+# #RUN git checkout ${commitSHA_confixel}
+# RUN pip install .
+# # NOTE: there is something wrong in this installation: `extractor` wasn't installed successfully....
+# WORKDIR /
