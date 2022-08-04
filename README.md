@@ -55,17 +55,17 @@ foo@bar:~$ pip install -e .    # for developer to update
         </a>
     </td>
     <td align="center">
-        <a href="https://github.com/drewwint">
-            <img src="https://avatars.githubusercontent.com/u/53614162?v=4" width="100;" alt="drewwint"/>
-            <br />
-            <sub><b>Drew E. Winters</b></sub>
-        </a>
-    </td>
-    <td align="center">
         <a href="https://github.com/zhao-cy">
             <img src="https://avatars.githubusercontent.com/u/20084724?v=4" width="100;" alt="zhao-cy"/>
             <br />
             <sub><b>Chenying Zhao</b></sub>
+        </a>
+    </td>
+    <td align="center">
+        <a href="https://github.com/drewwint">
+            <img src="https://avatars.githubusercontent.com/u/53614162?v=4" width="100;" alt="drewwint"/>
+            <br />
+            <sub><b>Drew E. Winters</b></sub>
         </a>
     </td></tr>
 </table>
