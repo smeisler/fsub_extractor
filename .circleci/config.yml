@@ -21,3 +21,37 @@ runinstall: &runinstall
       python -c "from matplotlib import font_manager"
       sed -i 's/\(backend *: \).*$/\1Agg/g' $( python -c "import matplotlib; print(matplotlib.matplotlib_fname())" )
 
+jobs:
+
+  build:
+    <<: *dockersetup
+    steps:
+      - checkout
+      - run: *runinstall
+  test_working:
+    <<: *dockersetup
+    steps: 
+      - checkout
+      - run: *runinstall
+      - run:
+          name: Test command extrator is working
+          command: |
+            extractor
+      # can add more runs for different commands if needed
+      
+workflows:
+  version: 2
+  build_test_deploy:
+    jobs:
+
+      - build:
+          filters:
+            tags:
+              only: /.*/
+
+      - test_working:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /.*/
