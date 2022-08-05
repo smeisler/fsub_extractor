@@ -115,9 +115,8 @@ def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist, two_rois): 
             tck_file,
             rois_in,
             outpath_base + "connectome.txt",
-            #"-assignment_forward_search",
-            #search_dist,
-            "-assignment_all_voxels",
+            "-assignment_forward_search",
+            search_dist,
             "-out_assignments",
             outpath_base + "assignments.txt",
             "-force"
@@ -133,12 +132,8 @@ def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist, two_rois): 
     # Change connectome2tck arguments based on single node or pairwise nodes
     if two_rois:
         nodes = "1,2"
-        extra_args = ["-exclusive",
-            "-files",
-            "single"]
     else:
-        nodes = "1"
-        extra_args = ["-keep_self"]
+        nodes = "0,1"
     conn2tck_proc = subprocess.Popen(
         [
             connectome2tck_path,
@@ -146,8 +141,11 @@ def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist, two_rois): 
             outpath_base + "assignments.txt",
             outpath_base + "extracted",
             "-nodes",
-            nodes
-        ] + extra_args,
+            nodes,
+            "-exclusive",
+            "-files",
+            "single"
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
