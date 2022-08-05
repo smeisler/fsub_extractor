@@ -4,6 +4,7 @@
 # ref: https://github.com/PennLINC/qsiprep_build/blob/main/setup_build.sh
 # ref: https://github.com/PennLINC/qsiprep_build/blob/main/Dockerfile
 
+FROM pennbbl/qsiprep-freesurfer:22.2.0 as build_freesurfer
 FROM pennbbl/qsiprep-mrtrix3:22.1.0 as build_mrtrix3
 FROM pennbbl/qsiprep-miniconda:22.4.1 as build_miniconda
 # seems MRTRIX3_DEPS requires cuda:
@@ -15,6 +16,29 @@ FROM cuda10
 COPY --from=build_mrtrix3 /opt/mrtrix3-latest /opt/mrtrix3-latest
 ENV PATH="$PATH:/opt/mrtrix3-latest/bin" \
     MRTRIX3_DEPS="bzip2 ca-certificates curl libpng16-16 libblas3 liblapack3 libtiff5"
+
+
+## FreeSurfer
+COPY --from=build_freesurfer /opt/freesurfer /opt/freesurfer
+# Simulate SetUpFreeSurfer.sh
+ENV FSL_DIR="/opt/fsl-6.0.5.1" \
+    OS="Linux" \
+    FS_OVERRIDE=0 \
+    FIX_VERTEX_AREA="" \
+    FSF_OUTPUT_FORMAT="nii.gz" \
+    FREESURFER_HOME="/opt/freesurfer"
+ENV SUBJECTS_DIR="$FREESURFER_HOME/subjects" \
+    FUNCTIONALS_DIR="$FREESURFER_HOME/sessions" \
+    MNI_DIR="$FREESURFER_HOME/mni" \
+    LOCAL_DIR="$FREESURFER_HOME/local" \
+    MINC_BIN_DIR="$FREESURFER_HOME/mni/bin" \
+    MINC_LIB_DIR="$FREESURFER_HOME/mni/lib" \
+    MNI_DATAPATH="$FREESURFER_HOME/mni/data"
+ENV PERL5LIB="$MINC_LIB_DIR/perl5/5.8.5" \
+    MNI_PERL5LIB="$MINC_LIB_DIR/perl5/5.8.5" \
+    PATH="$FREESURFER_HOME/bin:$FSFAST_HOME/bin:$FREESURFER_HOME/tktools:$MINC_BIN_DIR:$PATH" \
+    FREESURFER_DEPS="bc ca-certificates curl libgomp1 libxmu6 libxt6 tcsh perl"
+
 
 
 ## Python, compiled dependencies
