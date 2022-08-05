@@ -16,14 +16,12 @@ def get_parser():
     )
     parser.add_argument(
         "--out_dir",
-        "--out-dir",
         help="Directory where outputs will be stored",
         type=op.abspath,
         default="./",
     )
     parser.add_argument(
         "--out_prefix",
-        "--out-prefix",
         help="Prefix for all output files",
         type=str,
         default="",
@@ -35,7 +33,6 @@ def get_parser():
     )
     parser.add_argument(
         "--search_dist",
-        "--search-dist",
         help="Distance in mm to search ahead of streamlines for ROIs",
         default=4,
     )
