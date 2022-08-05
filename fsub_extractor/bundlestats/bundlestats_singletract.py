@@ -52,7 +52,7 @@ MAINPATH = TCK_FILEPATH.split(TCK_NAME)[0]
 statfiles = ['/Users/alicja/Documents/Neurohackademy22/fsub/subj01/fa.nii.gz',
              '/Users/alicja/Documents/Neurohackademy22/fsub/subj01/md.nii.gz',
              '/Users/alicja/Documents/Neurohackademy22/fsub/subj01/rd.nii.gz']
-statnames = ['fa', 'md', 'rd']
+statnames = [elem.split('/')[-1].replace('.nii', '').replace('.gz', '') for elem in statfiles]
 stats = dict(zip(statnames, statfiles))
 
 
