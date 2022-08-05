@@ -1,0 +1,10 @@
+name: extractor
+channels: 
+ - conda-forge
+ - mrtrix3
+dependencies: 
+ - pip
+ - mrtrix3=3.0.3
+ - pip: 
+    - dipy==1.5.0
+    - pyafq==0.12.2
