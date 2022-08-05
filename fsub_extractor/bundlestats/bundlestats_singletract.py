@@ -73,7 +73,9 @@ def extract_means(filename):
 
 
 def test_extract_means():
-	assert extract_means('test/test_extract_means.txt') == [0.425, 0.124, 0.6723, 0.124, 0.136764, 0.234123, 0.45134]
+	test_path = op.join(os.getcwd(), 'fsub_extractor', 'bundlestats', 'test', 'test_extract_means.txt')
+	testlist = extract_means(test_path)
+	assert testlist == [0.4739239812, 0.4160107374, 0.3768298924, 0.3602295816, 0.3719401062]
 
 
 def create_statfiles(tck_file, stat):
@@ -98,9 +100,10 @@ def create_statfiles(tck_file, stat):
 
 
 def test_create_statfiles():
-	tck_file = ['test_tract.tck', op.join('test', 'test_tract.tck')]
-	stat_file = ['test_fa.nii.gz', op.join('test', 'test_fa.nii.gz')]
-	assert op.exists(create_statfiles(tck_file, stat_file))
+	test_path = op.join(os.getcwd(),'fsub_extractor','bundlestats','test')
+	test_tck_file = ['test_tract.tck', op.join(test_path, 'test_tract.tck')]
+	test_stat_file = ['test_fa.nii.gz', op.join(test_path, 'test_fa.nii.gz')]
+	assert op.exists(create_statfiles(test_tck_file, test_stat_file))
 
 
 def process_tract(stats, plot=True):
@@ -223,9 +226,6 @@ def process_tract(stats, plot=True):
 			# don't show the plot
 			plt.close()
 			print('Figure created: ', figfile)
-
-
-
 
 
 try:
