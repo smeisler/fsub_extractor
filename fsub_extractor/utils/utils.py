@@ -17,12 +17,26 @@ def find_program(program):
     """
     def is_exe(fpath):
         return op.exists(fpath) and os.access(fpath, os.X_OK)
-    for path in os.environ["PATH"].split(os.pathsep):
+
+    path_split = os.environ["PATH"].split(os.pathsep)
+    if len(path_split) == 0:
+        raise SystemExit("PATH environment variable is empty.")
+
+    for path in path_split:
         path = path.strip('"')
         exe_file = op.join(path, program)
         if is_exe(exe_file):
             return program
-    return None
+        else:
+            raise SystemExit("Command " + function_name + " could not be found in PATH.")
+
+
+def run_command(cmd_list):
+# [TODO] ADD DOC
+    function_name = cmd_list[0]
+    return_code = subprocess.run(cmd_list).returncode
+    if return_code != 0:
+       raise SystemExit("Command " + function_name + " exited with errors. See message above for more information.")
 
 def merge_rois(roi1, roi2, out_file):
     """Creates the input ROI atlas-like file to be passed into tck2connectome.
@@ -50,22 +64,13 @@ def merge_rois(roi1, roi2, out_file):
 
     else:
         labelled_roi2 = roi2.removesuffix(".nii.gz") + "_labelled.nii.gz"
-        mrcalc_path = find_program("mrcalc")
-        mult_proc = subprocess.Popen(
-            [mrcalc_path, roi2, "2", "-mult", labelled_roi2],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        _, err_mult = mult_proc.communicate()
+        mrcalc = find_program("mrcalc")
+        cmd_mrcalc_mult = [mrcalc, roi2, "2", "-mult", labelled_roi2]
+        run_command(cmd_mrcalc_mult)
         if not op.exists(labelled_roi2):
             raise Exception(err_mult)
 
-        merg_proc = subprocess.Popen(
-            [mrcalc_path, roi1, labelled_roi2, "-add", out_file],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        _, err_merg = merg_proc.communicate()
+        cmd_mrcalc_merge = [mrcalc, roi1, labelled_roi2, "-add", out_file]
         if not op.exists(out_file):
             raise Exception(err_mult)
 
@@ -84,34 +89,25 @@ def t1_to_gmwmi(anat, outpath_base):
 
     # Run 5ttgen to generate 5tt image
     print('Generating 5TT Image')
-    fivettgen_path = find_program("5ttgen")
-    mult_proc = subprocess.Popen(
-            [fivettgen_path, fivett_algo, anat, outpath_base + '5tt.nii.gz'],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-    _, err_5tt = mult_proc.communicate()
+    fivettgen = find_program("5ttgen")
+    cmd_5ttgen = [fivettgen, fivett_algo, anat, outpath_base + '5tt.nii.gz', '-nocrop']
+    run_command(cmd_5ttgen)
 
     # Run 5tt2gmwmi to generate GMWMI image
     print('Generating GMWMI Image')
-    fivett2gmwmi_path = find_program("5tt2gmwmi")
-    mult_proc = subprocess.Popen(
-            [fivett2gmwmi_path, outpath_base + '5tt.nii.gz', outpath_base + 'gmwmi.nii.gz'],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-    _, err_gmwmi = mult_proc.communicate()
+    fivett2gmwmi = find_program("5tt2gmwmi")
+    cmd_5tt2gmwmi = [fivett2gmwmi, outpath_base + '5tt.nii.gz', outpath_base + 'gmwmi.nii.gz']
+    run_command(cmd_5tt2gmwmi)
     print('Finished creating GMWMI')
-    return [err_5tt, err_gmwmi]
+    return None
 
 def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist, two_rois):  # nodes?
     # [TODO] docs
     # Run MRtrix CLI
     ### tck2connectome
-    tck2connectome_path = find_program("tck2connectome")
-    tck2conn_proc = subprocess.Popen(
-        [
-            tck2connectome_path,
+    tck2connectome = find_program("tck2connectome")
+    tck2connectome_cmd = [
+            tck2connectome,
             tck_file,
             rois_in,
             outpath_base + "connectome.txt",
@@ -120,23 +116,18 @@ def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist, two_rois): 
             "-out_assignments",
             outpath_base + "assignments.txt",
             "-force"
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    _, err_tck2conn = tck2conn_proc.communicate()
-    # [TODO] check for output, if not present, print error
+        ]
+    run_command(tck2connectome_cmd)
 
     ### connectome2tck
-    connectome2tck_path = find_program("connectome2tck")
+    connectome2tck = find_program("connectome2tck")
     # Change connectome2tck arguments based on single node or pairwise nodes
     if two_rois:
         nodes = "1,2"
     else:
         nodes = "0,1"
-    conn2tck_proc = subprocess.Popen(
-        [
-            connectome2tck_path,
+    connectome2tck_cmd = [
+            connectome2tck,
             tck_file,
             outpath_base + "assignments.txt",
             outpath_base + "extracted",
@@ -145,15 +136,9 @@ def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist, two_rois): 
             "-exclusive",
             "-files",
             "single"
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    _, err_conn2tck = conn2tck_proc.communicate()
-    # [TODO] check for output, if not present, print error
-
-    return [err_tck2conn, err_conn2tck]
-
+        ]
+    run_command(connectome2tck_cmd)
+    return None
 
 def dilate_rois(rois_in, outpath_base):
     pass
