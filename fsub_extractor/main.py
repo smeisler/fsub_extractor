@@ -9,36 +9,51 @@ def get_parser():
         description="Functionally segments a tract file based on intersections with prespecified ROI(s)"
     )
     parser.add_argument(
-        "--tck-file", "--tck_file", help="Tract File (.tck)", required=True
+        "--tck-file", "--tck_file", help="Path to tract file (.tck)", type=op.abspath, required=True,
     )
-    parser.add_argument("--roi1", help="First ROI file (.nii.gz)", required=True)
+    parser.add_argument("--roi1", help="First ROI file (.mgz, .label, or .nii.gz)", type=op.abspath, required=True)
+    parser.add_argument("--fs_dir", "--fs-dir", help="Path to FreeSurfer directory for the subject", type=op.abspath, required=False)
+    parser.add_argument("--fs_license", "--fs-license", help="Path to FreeSurfer license", type=op.abspath, required=False) #[TODO] MAKE REQUIRED LATER
     parser.add_argument(
-        "--roi2", help="Second ROI file (.nii.gz), optional", default=None
+        "--hemi",
+        help="Hemisphere name(s) corresponding to locations of the ROIs, separated by a comma if different for two ROIs (e.g 'lh,rf').",
+        required=False
+    )
+    parser.add_argument("--gmwmi", help="Path to GMWMI image (if not specified, will be created from FreeSurfer inputs)", type=op.abspath)
+    parser.add_argument(
+        "--roi2", help="Second ROI file (.mgz, .label, or .nii.gz), optional", type=op.abspath
+    )
+    parser.add_argument(
+        "--scalars",
+        help="Comma delimited list of scalar map(s) to sample streamlines on (.nii.gz)"
+    )
+    parser.add_argument(
+        "--search_dist",
+        "--search-dist",
+        help="Distance in mm to search ahead of streamlines for ROIs",
+        type=float,
+        default=4.0
     )
     parser.add_argument(
         "--out_dir",
         "--out-dir",
         help="Directory where outputs will be stored",
         type=op.abspath,
-        default="./",
+        default=os.getcwd(),
     )
     parser.add_argument(
         "--out_prefix",
         "--out-prefix",
         help="Prefix for all output files",
         type=str,
-        default="",
+        default=""
     )
     parser.add_argument(
-        "--scalar",
-        help="Scalar map(s) to sample streamlines on (.nii.gz)",
-        default=None,
-    )
-    parser.add_argument(
-        "--search_dist",
-        "--search-dist",
-        help="Distance in mm to search ahead of streamlines for ROIs",
-        default=4,
+        "--scratch",
+        "--scratch",
+        help="Path to scratch directory",
+        type=op.abspath,
+        default=os.getcwd()
     )
     return parser
 
@@ -52,20 +67,31 @@ def main():
     main = extractor(
         tck_file=args.tck_file,
         roi1=args.roi1,
+        fs_dir=args.fs_dir,
+        fs_license=args.fs_license,
+        hemi=args.hemi,
+        gmwmi=args.gmwmi,
         roi2=args.roi2,
+        scalars=args.scalars,
+        search_dist=str(args.search_dist),
         out_dir=args.out_dir,
         out_prefix=args.out_prefix,
-        scalar=args.scalar,
-        search_dist=str(args.search_dist),
+        scratch=args.scratch
     )
 
 
-def extractor(tck_file, roi1, roi2, out_dir, out_prefix, scalar, search_dist):
+def extractor(tck_file, roi1, fs_dir, fs_license, hemi, gmwmi, roi2, scalars, search_dist, out_dir, out_prefix, scratch):
     # [TODO] add docs
 
     # Check for assertion errors [TODO]
 
-    outpath_base = op.join(out_dir, out_prefix) + "_"
+    # Add an underscore to separate prefix from file names if a prefix is specified
+    if len(out_prefix) > 0:
+        if out_prefix[-1] != '_':
+            out_prefix += '_'
+
+    outpath_base = op.join(out_dir, out_prefix)
+    scratch_base = op.join(scratch, out_prefix)
 
     # Create atlas-like file if multiple ROIs avaialble
     if roi2 == None:
@@ -86,7 +112,6 @@ def extractor(tck_file, roi1, roi2, out_dir, out_prefix, scalar, search_dist):
 
     # Run MRtrix commands
     print("Extracing the Sub-Bundle")
-    cmd_errs = extract_tck_mrtrix(
+    extract_tck_mrtrix(
         tck_file, rois_in, outpath_base, search_dist, two_rois
     )
-    print(cmd_errs)
