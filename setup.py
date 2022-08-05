@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = "fsub_extractor",
-    pacakges = find_packages(),
+    packages = find_packages(),
     #packages = ["fsub-extractor"],
     version = "0.0.1"
     # python_requires='>=3.8',  # TODO: UPDATE HERE!
