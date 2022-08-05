@@ -2,6 +2,7 @@ import argparse
 import os.path as op
 from fsub_extractor.utils.utils import *
 
+
 def get_parser():
 
     parser = argparse.ArgumentParser(
@@ -58,6 +59,7 @@ def main():
         search_dist=str(args.search_dist),
     )
 
+
 def extractor(tck_file, roi1, roi2, out_dir, out_prefix, scalar, search_dist):
     # [TODO] add docs
 
@@ -84,5 +86,7 @@ def extractor(tck_file, roi1, roi2, out_dir, out_prefix, scalar, search_dist):
 
     # Run MRtrix commands
     print("Extracing the Sub-Bundle")
-    cmd_errs = extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist, two_rois)
+    cmd_errs = extract_tck_mrtrix(
+        tck_file, rois_in, outpath_base, search_dist, two_rois
+    )
     print(cmd_errs)
