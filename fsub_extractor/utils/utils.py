@@ -9,7 +9,7 @@ def find_program(program):
     Parameters
     ==========
     program: str
-            name of command to look for 
+            name of command to look for
 
     Outputs
     =======
@@ -23,15 +23,14 @@ def find_program(program):
 
     path_split = os.environ["PATH"].split(os.pathsep)
     if len(path_split) == 0:
-        raise SystemExit("PATH environment variable is empty.")
+        raise Exception("PATH environment variable is empty.")
 
     for path in path_split:
         path = path.strip('"')
         exe_file = op.join(path, program)
         if is_exe(exe_file):
             return program
-        else:
-            raise SystemExit("Command " + function_name + " could not be found in PATH.")
+    raise Exception("Command " + program + " could not be found in PATH.")
 
 
 def run_command(cmd_list):
@@ -50,10 +49,14 @@ def run_command(cmd_list):
     function_name = cmd_list[0]
     return_code = subprocess.run(cmd_list).returncode
     if return_code != 0:
-       raise SystemExit("Command " + function_name + " exited with errors. See message above for more information.")
+        raise Exception(
+            "Command "
+            + function_name
+            + " exited with errors. See message above for more information."
+        )
 
 
-def merge_rois(roi1, roi2, outpath_base):
+def merge_rois(roi1, roi2, out_file):
     """Creates the input ROI atlas-like file to be passed into tck2connectome.
     If a single ROI file is passed:
             Copies the same single ROI file.
@@ -70,7 +73,7 @@ def merge_rois(roi1, roi2, outpath_base):
     Outputs
     =======
     Function returns None
-    
+
     """
 
     labelled_roi2 = roi2.removesuffix(".nii.gz") + "_labelled.nii.gz"
@@ -84,7 +87,7 @@ def merge_rois(roi1, roi2, outpath_base):
     cmd_mrcalc_merge = [mrcalc, roi1, labelled_roi2, "-add", out_file]
     run_command(cmd_mrcalc_merge)
 
-    return None
+    return out_file
 
 
 def anat_to_gmwmi(anat, outpath_base):
@@ -98,7 +101,7 @@ def anat_to_gmwmi(anat, outpath_base):
             Either a path to a T1 image (.nii, .nii.gz, .mif) or FreeSurfer output directory
     outpath_base: str
             Path to output directory, including output prefix
-            
+
 
     Outputs
     =======
@@ -108,29 +111,39 @@ def anat_to_gmwmi(anat, outpath_base):
     """
 
     # Check for T1 file vs FreeSurfer directory
-    if op.isdir(op.join(anat,'surf')):
-         print('FreeSurfer input detected: Using 5ttgen HSVS algorithm to generate GMWMI')
-         fivett_algo = 'hsvs'
-    elif anat[-7:] == '.nii.gz' or anat[-4:] == '.nii' or anat[-4:] == '.mif':
-         print('T1 image detected: Using default FSL 5ttgen algorithm to generate GMWMWI')
-         fivett_algo = 'fsl'
+    if op.isdir(op.join(anat, "surf")):
+        print(
+            "FreeSurfer input detected: Using 5ttgen HSVS algorithm to generate GMWMI"
+        )
+        fivett_algo = "hsvs"
+    elif anat[-7:] == ".nii.gz" or anat[-4:] == ".nii" or anat[-4:] == ".mif":
+        print(
+            "T1 image detected: Using default FSL 5ttgen algorithm to generate GMWMWI"
+        )
+        fivett_algo = "fsl"
     else:
-         raise Exception("Neither T1 or FreeSurfer input detected; Unable to create GMWMI")
+        raise Exception(
+            "Neither T1 or FreeSurfer input detected; Unable to create GMWMI"
+        )
 
     # Run 5ttgen to generate 5tt image
-    print('Generating 5TT Image')
+    print("Generating 5TT Image")
     fivettgen = find_program("5ttgen")
-    cmd_5ttgen = [fivettgen, fivett_algo, anat, outpath_base + '5tt.nii.gz', '-nocrop']
+    cmd_5ttgen = [fivettgen, fivett_algo, anat, outpath_base + "5tt.nii.gz", "-nocrop"]
     run_command(cmd_5ttgen)
 
     # Run 5tt2gmwmi to generate GMWMI image
-    print('Generating GMWMI Image')
+    print("Generating GMWMI Image")
     fivett2gmwmi = find_program("5tt2gmwmi")
-    cmd_5tt2gmwmi = [fivett2gmwmi, outpath_base + '5tt.nii.gz', outpath_base + 'gmwmi.nii.gz']
+    cmd_5tt2gmwmi = [
+        fivett2gmwmi,
+        outpath_base + "5tt.nii.gz",
+        outpath_base + "gmwmi.nii.gz",
+    ]
     run_command(cmd_5tt2gmwmi)
-    print('Finished creating GMWMI')
+    print("Finished creating GMWMI")
 
-    return None
+    return outpath_base + "gmwmi.nii.gz"
 
 
 def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist, two_rois):
@@ -150,7 +163,7 @@ def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist, two_rois):
             How far to search ahead of streamlines for ROIs, in mm
     two_rois: bool
             True if two ROIs in rois_in, False, if one ROI in rois_in
-            
+
 
     Outputs
     =======
@@ -162,16 +175,16 @@ def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist, two_rois):
     ### tck2connectome
     tck2connectome = find_program("tck2connectome")
     tck2connectome_cmd = [
-            tck2connectome,
-            tck_file,
-            rois_in,
-            outpath_base + "connectome.txt",
-            "-assignment_forward_search",
-            search_dist,
-            "-out_assignments",
-            outpath_base + "assignments.txt",
-            "-force"
-        ]
+        tck2connectome,
+        tck_file,
+        rois_in,
+        outpath_base + "connectome.txt",
+        "-assignment_forward_search",
+        search_dist,
+        "-out_assignments",
+        outpath_base + "assignments.txt",
+        "-force",
+    ]
     run_command(tck2connectome_cmd)
 
     ### connectome2tck
@@ -182,51 +195,104 @@ def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist, two_rois):
     else:
         nodes = "0,1"
     connectome2tck_cmd = [
-            connectome2tck,
-            tck_file,
-            outpath_base + "assignments.txt",
-            outpath_base + "extracted",
-            "-nodes",
-            nodes,
-            "-exclusive",
-            "-files",
-            "single"
-        ]
+        connectome2tck,
+        tck_file,
+        outpath_base + "assignments.txt",
+        outpath_base + "extracted",
+        "-nodes",
+        nodes,
+        "-exclusive",
+        "-files",
+        "single",
+    ]
     run_command(connectome2tck_cmd)
 
-    return None
+    return outpath_base + "extracted.tck"
 
 
-def dilate_roi(roi_in, fs_dir, hemi, outpath_base):
-    #Change the environment to set FreeSurfer SUBJECTS_DIR
-    #my_env = os.environ.copy()
-    #my_env["SUBJECTS_DIR"] = "/usr/sbin:/sbin:" + my_env["PATH"]
-	#subprocess.Popen(my_command, env=my_env)
-    #os.environ["SUBJECTS_DIR"] = "1"
-    subject = fs_dir.split('/')[-1]
-    roi_file_extension = roi_in.split('.')[-1]
-    if roi_file_extension != 'label' and roi_file_extension != 'mgz':
-        print('Using volumetric ROI dilation pipeline')
-        roi_surf = roi_in.replace(roi_file_extension,'.mgz')
-        #tkregister2 = find_program('tkregister2')
-        #tkregister2_cmd = [tkregister2, '--mov', op.join(fs_dir, 'mri','orig.mgz'), '--noedit', '--s', subject, '--regheader', '--reg', op.join(fs_dir,'surf','register.dat')]
-        #run_command(tckregister2_cmd)
-        mri_vol2surf = find_program('mri_vol2surf')
-        mri_vol2surf_cmd = [mri_vol2surf, '--src', roi_in, '--projfrac-max', '-.5 1 .1', '--out', roi_surf, '--regheader', subject, '--hemi', hemi]
+def dilate_roi(roi_in, fs_dir, subject, hemi, outpath_base):
+    # [TODO] ADD DOCS
+    os.environ["SUBJECTS_DIR"] = fs_dir
+    if roi_in[-7:] == '.nii.gz':
+        print("Using volumetric ROI dilation pipeline")
+        roi_surf = roi_in.replace(".nii.gz", ".mgz")
+        mri_vol2surf = find_program("mri_vol2surf")
+        mri_vol2surf_cmd = [
+            mri_vol2surf,
+            "--src",
+            roi_in,
+            "--out",
+            roi_surf,
+            "--regheader",
+            subject,
+            "--hemi",
+            hemi,
+            "--projfrac-max",
+            "-.5",
+            "1",
+            ".1"
+        ]
         run_command(mri_vol2surf_cmd)
     else:
         roi_surf = roi_in
-        print('Starting with surface ROI')
-
-    mri_surf2vol = find_program('mri_surf2vol')
-    mri_surf2vol_cmd = [mri_surf2vol, '--surfval', roi_surf, '--o', roi_in, 
-            '--subject', subject, '--fill-projfrac', '-2 0 0.05', '--hemi', hemi, '--template', op.join(fs_dir, 'mri', 'aseg.mgz'), '--identity', subject]
-    run_command(mri_surf2vol)
-    return None # EVENTUALLY RETURN PATH TO FINAL ROI
+        
+    if roi_surf[-6:] == ".label":
+        print("Dilating FS Label file")
+        out_path = roi_surf.replace(".label",".projected.nii.gz")
+        mri_label2vol = find_program("mri_label2vol")
+        mri_label2vol_cmd = [
+            mri_label2vol,
+            "--label",
+            roi_surf,
+            "--o",
+            out_path,
+            "--subject",
+            subject,
+            "--hemi",
+            hemi,
+            "--temp",
+            op.join(fs_dir, subject, "mri", "aseg.mgz"),
+            "--proj",
+            "frac",
+            "-2",
+            "0",
+            "0.05"]
+        run_command(mri_label2vol_cmd)
+    if roi_surf[-4:]  == ".mgz":
+        print("Dilating FS MGZ surface file")
+        out_path = roi_surf.replace(".mgz",".projected.nii.gz")
+        mri_surf2vol = find_program("mri_surf2vol")
+        mri_surf2vol_cmd = [
+            mri_surf2vol,
+            "--surfval",
+            roi_surf,
+            "--o",
+            out_path,
+            "--subject",
+            subject,
+            "--hemi",
+            hemi,
+            "--template",
+            op.join(fs_dir, subject, "mri", "aseg.mgz"),
+            "--identity",
+            subject,
+            "--fill-projfrac",
+            "-2",
+            "0",
+            "0.05"
+        ]
+        run_command(mri_surf2vol_cmd)
+    return out_path  # EVENTUALLY RETURN PATH TO FINAL ROI
 
 
 def intersect_gmwmi(rois_in, gmwmi, outpath_base):
     mrcalc = find_program("mrcalc")
-    mrcalc_cmd = [mrcalc_path, rois_in, gmwmi, "-mult", outpath_base + 'gmwmi_roi_intersect.nii.gz']
+    mrcalc_cmd = [
+        mrcalc_path,
+        rois_in,
+        gmwmi,
+        "-mult",
+        outpath_base + "gmwmi_roi_intersect.nii.gz",
+    ]
     run_command(mrcalc_cmd)
-
+    return outpath_base + "gmwmi_roi_intersect.nii.gz"
