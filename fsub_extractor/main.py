@@ -9,15 +9,25 @@ def get_parser():
         description="Functionally segments a tract file based on intersections with prespecified ROI(s)"
     )
     parser.add_argument(
+        "--subject", help="Subject name (must match name in FreeSurfer folder)", type=str, required=True,
+    )
+    parser.add_argument(
         "--tck-file", "--tck_file", help="Path to tract file (.tck)", type=op.abspath, required=True,
     )
     parser.add_argument("--roi1", help="First ROI file (.mgz, .label, or .nii.gz)", type=op.abspath, required=True)
-    parser.add_argument("--fs_dir", "--fs-dir", help="Path to FreeSurfer directory for the subject", type=op.abspath, required=False)
-    parser.add_argument("--fs_license", "--fs-license", help="Path to FreeSurfer license", type=op.abspath, required=False) #[TODO] MAKE REQUIRED LATER
+    parser.add_argument("--fs_dir", "--fs-dir", help="Path to FreeSurfer directory for the subject", type=op.abspath, required=True)
     parser.add_argument(
         "--hemi",
         help="Hemisphere name(s) corresponding to locations of the ROIs, separated by a comma if different for two ROIs (e.g 'lh,rf').",
-        required=False
+        required=True
+    )
+    parser.add_argument(
+        "--out_dir",
+        "--out-dir",
+        help="Directory where outputs will be stored (a subject-folder will be created there if it does not exist)",
+        type=op.abspath,
+        required = True
+        default=os.getcwd(),
     )
     parser.add_argument("--gmwmi", help="Path to GMWMI image (if not specified, will be created from FreeSurfer inputs)", type=op.abspath)
     parser.add_argument(
@@ -35,13 +45,6 @@ def get_parser():
         default=4.0
     )
     parser.add_argument(
-        "--out_dir",
-        "--out-dir",
-        help="Directory where outputs will be stored",
-        type=op.abspath,
-        default=os.getcwd(),
-    )
-    parser.add_argument(
         "--out_prefix",
         "--out-prefix",
         help="Prefix for all output files",
@@ -55,6 +58,7 @@ def get_parser():
         type=op.abspath,
         default=os.getcwd()
     )
+    parser.add_argument("--fs_license", "--fs-license", help="Path to FreeSurfer license", type=op.abspath, required=False) #[TODO] MAKE REQUIRED LATER
     return parser
 
 
@@ -65,10 +69,10 @@ def main():
     args = parser.parse_args()
 
     main = extractor(
+        subject=args.subject,
         tck_file=args.tck_file,
         roi1=args.roi1,
         fs_dir=args.fs_dir,
-        fs_license=args.fs_license,
         hemi=args.hemi,
         gmwmi=args.gmwmi,
         roi2=args.roi2,
@@ -76,11 +80,12 @@ def main():
         search_dist=str(args.search_dist),
         out_dir=args.out_dir,
         out_prefix=args.out_prefix,
-        scratch=args.scratch
+        scratch=args.scratch,
+        fs_license=args.fs_license
     )
 
 
-def extractor(tck_file, roi1, fs_dir, fs_license, hemi, gmwmi, roi2, scalars, search_dist, out_dir, out_prefix, scratch):
+def extractor(subject, tck_file, roi1, fs_dir, fs_license, hemi, gmwmi, roi2, scalars, search_dist, out_dir, out_prefix, scratch):
     # [TODO] add docs
 
     # Check for assertion errors [TODO]

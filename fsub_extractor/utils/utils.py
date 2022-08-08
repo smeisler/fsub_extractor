@@ -202,6 +202,7 @@ def dilate_roi(roi_in, fs_dir, hemi, outpath_base):
     #my_env = os.environ.copy()
     #my_env["SUBJECTS_DIR"] = "/usr/sbin:/sbin:" + my_env["PATH"]
 	#subprocess.Popen(my_command, env=my_env)
+    #os.environ["SUBJECTS_DIR"] = "1"
     subject = fs_dir.split('/')[-1]
     roi_file_extension = roi_in.split('.')[-1]
     if roi_file_extension != 'label' and roi_file_extension != 'mgz':
@@ -221,7 +222,7 @@ def dilate_roi(roi_in, fs_dir, hemi, outpath_base):
     mri_surf2vol_cmd = [mri_surf2vol, '--surfval', roi_surf, '--o', roi_in, 
             '--subject', subject, '--fill-projfrac', '-2 0 0.05', '--hemi', hemi, '--template', op.join(fs_dir, 'mri', 'aseg.mgz'), '--identity', subject]
     run_command(mri_surf2vol)
-    return None
+    return None # EVENTUALLY RETURN PATH TO FINAL ROI
 
 
 def intersect_gmwmi(rois_in, gmwmi, outpath_base):
