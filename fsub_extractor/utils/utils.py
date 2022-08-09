@@ -223,7 +223,7 @@ def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist, two_rois):
     return outpath_base + "extracted.tck"
 
 
-def dilate_roi(roi_in, fs_dir, subject, hemi, outpath_base):
+def project_roi(roi_in, fs_dir, subject, hemi, outpath_base):
     # [TODO] ADD DOCS
     os.environ["SUBJECTS_DIR"] = fs_dir
     if roi_in[-7:] == '.nii.gz':
