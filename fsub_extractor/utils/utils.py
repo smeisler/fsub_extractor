@@ -141,9 +141,22 @@ def anat_to_gmwmi(anat, outpath_base):
         outpath_base + "gmwmi.nii.gz",
     ]
     run_command(cmd_5tt2gmwmi)
-    print("Finished creating GMWMI")
 
-    return outpath_base + "gmwmi.nii.gz"
+    print("Binarizing GMWMI")
+    out_path = outpath_base + "gmwmi_bin.nii.gz"
+    mrthreshold = find_program("mrthreshold")
+    mrthreshold_cmd = [
+        mrthreshold,
+        "-abs",
+       "0",
+       "-comparison",
+       "gt",
+        outpath_base + "gmwmi.nii.gz",
+        out_path,
+    ]
+    run_command(mrthreshold_cmd)
+    return out_path
+    #return outpath_base + "gmwmi.nii.gz"
 
 
 def extract_tck_mrtrix(tck_file, rois_in, outpath_base, search_dist, two_rois):
@@ -215,7 +228,8 @@ def dilate_roi(roi_in, fs_dir, subject, hemi, outpath_base):
     os.environ["SUBJECTS_DIR"] = fs_dir
     if roi_in[-7:] == '.nii.gz':
         print("Using volumetric ROI dilation pipeline")
-        roi_surf = roi_in.replace(".nii.gz", ".mgz")
+        #roi_surf = roi_in.replace(".nii.gz", ".mgz")
+        roi_surf = outpath_base + op.basename(roi_in).replace(".nii.gz",".mgz")
         mri_vol2surf = find_program("mri_vol2surf")
         mri_vol2surf_cmd = [
             mri_vol2surf,
@@ -238,7 +252,8 @@ def dilate_roi(roi_in, fs_dir, subject, hemi, outpath_base):
         
     if roi_surf[-6:] == ".label":
         print("Dilating FS Label file")
-        out_path = roi_surf.replace(".label",".projected.nii.gz")
+        #out_path = roi_surf.replace(".label",".projected.nii.gz")
+        out_path = outpath_base + op.basename(roi_surf).replace(".label",".projected.nii.gz")
         mri_label2vol = find_program("mri_label2vol")
         mri_label2vol_cmd = [
             mri_label2vol,
@@ -260,7 +275,8 @@ def dilate_roi(roi_in, fs_dir, subject, hemi, outpath_base):
         run_command(mri_label2vol_cmd)
     if roi_surf[-4:]  == ".mgz":
         print("Dilating FS MGZ surface file")
-        out_path = roi_surf.replace(".mgz",".projected.nii.gz")
+        #out_path = roi_surf.replace(".mgz",".projected.nii.gz")
+        out_path = outpath_base + op.basename(roi_surf).replace(".mgz",".projected.nii.gz")
         mri_surf2vol = find_program("mri_surf2vol")
         mri_surf2vol_cmd = [
             mri_surf2vol,
@@ -282,17 +298,19 @@ def dilate_roi(roi_in, fs_dir, subject, hemi, outpath_base):
             "0.05"
         ]
         run_command(mri_surf2vol_cmd)
-    return out_path  # EVENTUALLY RETURN PATH TO FINAL ROI
+        
+        return out_path  # EVENTUALLY RETURN PATH TO FINAL ROI
 
 
 def intersect_gmwmi(rois_in, gmwmi, outpath_base):
     mrcalc = find_program("mrcalc")
     mrcalc_cmd = [
-        mrcalc_path,
-        rois_in,
+        mrcalc,
         gmwmi,
+        rois_in,
         "-mult",
         outpath_base + "gmwmi_roi_intersect.nii.gz",
     ]
     run_command(mrcalc_cmd)
+    
     return outpath_base + "gmwmi_roi_intersect.nii.gz"
