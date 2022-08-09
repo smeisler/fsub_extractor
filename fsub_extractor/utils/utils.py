@@ -5,7 +5,16 @@ import subprocess
 
 
 def overwrite_check(file):
-    # TODO: add docs
+    """Checks whether a file exists. If so, aborts the function.
+    Parameters
+    ==========
+    file: str
+            name of file to look for
+
+    Outputs
+    =======
+    None
+    """
     if op.exists(file):
         raise Exception(
             "Output file "
@@ -16,7 +25,7 @@ def overwrite_check(file):
 
 
 def find_program(program):
-    """Checks that a command line tools is on accessible on PATH
+    """Checks that a command line tools is executable on path.
     Parameters
     ==========
     program: str
@@ -45,12 +54,11 @@ def find_program(program):
 
 
 def run_command(cmd_list):
-    """Interface for running CLI commands in Python.
-    Crashes if command returns an error
+    """Interface for running CLI commands in Python. Crashes if command returns an error.
     Parameters
     ==========
     cmd_list: list
-            List containing arguments for the function, e.g. ['Command Name', '--argName1', 'arg1']
+            List containing arguments for the function, e.g. ['CommandName', '--argName1', 'arg1']
 
     Outputs
     =======
@@ -69,33 +77,34 @@ def run_command(cmd_list):
 
 def merge_rois(roi1, roi2, out_file, overwrite):
     """Creates the input ROI atlas-like file to be passed into tck2connectome.
-    If a single ROI file is passed:
-            Copies the same single ROI file.
-    If multiple ROI files are passed:
-            Multiplies the second ROI file passed by 2, and merges this file with the first file.
-            Returns the merged file
+        Multiplies the second ROI file passed by 2, and merges this file with the first file.
+        Returns the merged file
     Parameters
     ==========
     roi1: str
-            abspath to a roi mask file
+            abspath to the first ROI mask file
     roi2: str
-            abspath to a second roi mask file
+            abspath to the second ROI mask file
     out_file: str
-            abspath of filename to save output merged roi file
+            abspath of filename to save output merged ROI file
     overwrite: bool
             Whether to allow overwriting outputs
 
     Outputs
     =======
-    Function returns None
+    out_file: str
+            abspath of output file created by this function
 
     """
 
-    # Check if file already exists if overwriting not allowed
-    if overwrite == False:
-        overwrite_check(out_file)
 
     labelled_roi2 = roi2.removesuffix(".nii.gz") + "_labelled.nii.gz"
+    
+    # Abort if file already exists and overwriting not allowed
+    if overwrite == False:
+        overwrite_check(labelled_roi2)
+        overwrite_check(out_file)
+        
     mrcalc = find_program("mrcalc")
 
     # Multiply second ROI by 2
@@ -117,18 +126,18 @@ def anat_to_gmwmi(anat, outpath_base, overwrite):
     Parameters
     ==========
     anat: str
-            Either a path to a T1 image (.nii, .nii.gz, .mif) or FreeSurfer output directory
+            Either a path to a T1 image (.nii, .nii.gz, .mif) or FreeSurfer subject directory
     outpath_base: str
             Path to output directory, including output prefix
     overwrite: bool
             Whether to allow overwriting outputs
 
-
     Outputs
     =======
-    Function returns None
+    Function returns path to binarized GMWMI output image.
     outpath_base + 5tt.nii.gz is the 5TT segmented anatomical image
     outpath_base + gmwmi.nii.gz is the GMWMI image
+    outpath_base + gmwmi_bin.nii.gz is the binarized GMWMI image
     """
 
     # Check for T1 file vs FreeSurfer directory
@@ -139,7 +148,7 @@ def anat_to_gmwmi(anat, outpath_base, overwrite):
         fivett_algo = "hsvs"
     elif anat[-7:] == ".nii.gz" or anat[-4:] == ".nii" or anat[-4:] == ".mif":
         print(
-            "T1 image detected: Using default FSL 5ttgen algorithm to generate GMWMWI"
+            "T1 image detected: Using FSL 5ttgen algorithm to generate GMWMWI"
         )
         fivett_algo = "fsl"
     else:
@@ -173,7 +182,7 @@ def anat_to_gmwmi(anat, outpath_base, overwrite):
 
     print("Binarizing GMWMI")
     mrthreshold = find_program("mrthreshold")
-    mrthreshold_cmd = [
+    cmd_mrthreshold = [
         mrthreshold,
         "-abs",
         "0",
@@ -183,10 +192,10 @@ def anat_to_gmwmi(anat, outpath_base, overwrite):
         outpath_base + "gmwmi_bin.nii.gz",
     ]
     if overwrite:
-        mrthreshold_cmd += ["-force"]
+        cmd_mrthreshold += ["-force"]
     else:
         overwrite_check(outpath_base + "gmwmi_bin.nii.gz")
-    run_command(mrthreshold_cmd)
+    run_command(cmd_mrthreshold)
     return outpath_base + "gmwmi_bin.nii.gz"
 
 
@@ -220,7 +229,7 @@ def extract_tck_mrtrix(
 
     ### tck2connectome
     tck2connectome = find_program("tck2connectome")
-    tck2connectome_cmd = [
+    cmd_tck2connectome = [
         tck2connectome,
         tck_file,
         rois_in,
@@ -231,7 +240,7 @@ def extract_tck_mrtrix(
         outpath_base + "assignments.txt",
         "-force",
     ]
-    run_command(tck2connectome_cmd)
+    run_command(cmd_tck2connectome)
 
     ### connectome2tck
     connectome2tck = find_program("connectome2tck")
@@ -240,7 +249,7 @@ def extract_tck_mrtrix(
         nodes = "1,2"
     else:
         nodes = "0,1"
-    connectome2tck_cmd = [
+    cmd_connectome2tck = [
         connectome2tck,
         tck_file,
         outpath_base + "assignments.txt",
@@ -251,7 +260,7 @@ def extract_tck_mrtrix(
         "-files",
         "single",
     ]
-    run_command(connectome2tck_cmd)
+    run_command(cmd_connectome2tck)
 
     return outpath_base + "extracted.tck"
 
@@ -264,7 +273,7 @@ def project_roi(roi_in, fs_dir, subject, hemi, outpath_base, overwrite):
         # roi_surf = roi_in.replace(".nii.gz", ".mgz")
         roi_surf = outpath_base + op.basename(roi_in).replace(".nii.gz", ".mgz")
         mri_vol2surf = find_program("mri_vol2surf")
-        mri_vol2surf_cmd = [
+        cmd_mri_vol2surf = [
             mri_vol2surf,
             "--src",
             roi_in,
@@ -279,7 +288,7 @@ def project_roi(roi_in, fs_dir, subject, hemi, outpath_base, overwrite):
             "1",
             ".1",
         ]
-        run_command(mri_vol2surf_cmd)
+        run_command(cmd_mri_vol2surf)
     else:
         roi_surf = roi_in
 
@@ -290,7 +299,7 @@ def project_roi(roi_in, fs_dir, subject, hemi, outpath_base, overwrite):
             ".label", ".projected.nii.gz"
         )
         mri_label2vol = find_program("mri_label2vol")
-        mri_label2vol_cmd = [
+        cmd_mri_label2vol = [
             mri_label2vol,
             "--label",
             roi_surf,
@@ -308,7 +317,7 @@ def project_roi(roi_in, fs_dir, subject, hemi, outpath_base, overwrite):
             "0",
             "0.05",
         ]
-        run_command(mri_label2vol_cmd)
+        run_command(cmd_mri_label2vol)
     if roi_surf[-4:] == ".mgz":
         print("Dilating FS MGZ surface file")
         # out_path = roi_surf.replace(".mgz",".projected.nii.gz")
@@ -316,7 +325,7 @@ def project_roi(roi_in, fs_dir, subject, hemi, outpath_base, overwrite):
             ".mgz", ".projected.nii.gz"
         )
         mri_surf2vol = find_program("mri_surf2vol")
-        mri_surf2vol_cmd = [
+        cmd_mri_surf2vol = [
             mri_surf2vol,
             "--surfval",
             roi_surf,
@@ -335,20 +344,20 @@ def project_roi(roi_in, fs_dir, subject, hemi, outpath_base, overwrite):
             "0",
             "0.05",
         ]
-        run_command(mri_surf2vol_cmd)
+        run_command(cmd_mri_surf2vol)
 
         return out_path  # EVENTUALLY RETURN PATH TO FINAL ROI
 
 
 def intersect_gmwmi(rois_in, gmwmi, outpath_base, overwrite):
     mrcalc = find_program("mrcalc")
-    mrcalc_cmd = [
+    cmd_mrcalc = [
         mrcalc,
         gmwmi,
         rois_in,
         "-mult",
         outpath_base + "gmwmi_roi_intersect.nii.gz",
     ]
-    run_command(mrcalc_cmd)
+    run_command(cmd_mrcalc)
 
     return outpath_base + "gmwmi_roi_intersect.nii.gz"

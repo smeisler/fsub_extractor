@@ -7,7 +7,7 @@ from fsub_extractor.utils.utils import *
 def get_parser():
 
     parser = argparse.ArgumentParser(
-        description="Functionally segments a tract file based on intersections with prespecified ROI(s)."
+        description="Functionally segments a tract file based on intersections with prespecified ROI(s) in gray matter."
     )
     parser.add_argument(
         "--subject",
@@ -18,7 +18,7 @@ def get_parser():
     parser.add_argument(
         "--tck-file",
         "--tck_file",
-        help="Path to tract file (.tck).",
+        help="Path to tract file (.tck). Should be in the same space as FreeSurfer and scalar map inputs.",
         type=op.abspath,
         required=True,
     )
@@ -57,7 +57,7 @@ def get_parser():
     )
     parser.add_argument(
         "--scalars",
-        help="Comma delimited list (no spaces) of scalar map(s) to sample streamlines on (.nii.gz).",
+        help="Comma delimited list (no spaces) of scalar map(s) to sample streamlines on (.nii.gz). Should be in the same space as .tck and FreeSurfer inputs.",
     )
     parser.add_argument(
         "--search_dist",
@@ -96,16 +96,48 @@ def get_parser():
     parser.add_argument(
         "--skip-gmwmi-intersection",
         "--skip_gmwmi_intersection",
-        help="Whether to skip intersection of ROI with GMWMI (not recommended unless ROI is already intersected). Default is to not skip intersection.",
+        help="Whether to skip intersecting ROI with GMWMI (not recommended unless ROI is already intersected). Default is to not skip intersection.",
         default=False,
         action=argparse.BooleanOptionalAction,
     )
     parser.add_argument(
         "--overwrite",
-        help="Whether to overwrite ouputs. Default is to overwrite.",
+        help="Whether to overwrite outputs. Default is to overwrite.",
         default=True,
         action=argparse.BooleanOptionalAction,
     )
+    parser.add_argument(
+        "--interactive-viz",
+        "--interactive_viz",
+        help="Whether to produce an interactive visualization. Default is not interactive.",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+    )
+    parser.add_argument(
+        "--orig-color",
+        "--orig_color",
+        help="Comma-delimited (no spaces) color spec for original bundle in visualization, as R,G,B. Default is 0.8,0.8,0.",
+        default="0.8,0.8,0",
+    )
+    parser.add_argument(
+        "--fsub-color",
+        "--fsub_color",
+        help="Comma-delimited (no spaces) color spec for FSuB bundle in visualization, as R,G,B. Default is 0.2,0.6,1.",
+        default="0.2,0.6,1",
+    )
+    parser.add_argument(
+        "--roi1-color",
+        "--roi1_color",
+        help="Comma-delimited (no spaces) color spec for ROI1 in visualization, as R,G,B. Default is 0.2,1,1.",
+        default="0.2,1,1",
+    )
+    parser.add_argument(
+        "--roi2-color",
+        "--roi2_color",
+        help="Comma-delimited (no spaces) color spec for ROI2 in visualization, as R,G,B. Default is 0.2,1,1",
+        default="0.2,1,1",
+    )
+    
 
     return parser
 
@@ -133,6 +165,11 @@ def main():
         skip_roi_projection=args.skip_roi_projection,
         skip_gmwmi_intersection=args.skip_gmwmi_intersection,
         overwrite=args.overwrite,
+        interactive_viz=args.interactive_viz,
+        orig_color=args.orig_color,
+        fsub_color=args.fsub_color,
+        roi1_color=args.roi1_color,
+        roi2_color=args.roi2_color,
     )
 
 
@@ -153,6 +190,11 @@ def extractor(
     skip_roi_projection,
     skip_gmwmi_intersection,
     overwrite,
+    interactive_viz,
+    orig_color,
+    fsub_color,
+    roi1_color,
+    roi2_color,
 ):
 
     # TODO: add docs
@@ -294,5 +336,7 @@ def extractor(
     )
 
     print("\n DONE! The extracted tract is located at " + extracted_tck)
+
+    ### [TODO: Add bundle visualization] ###
 
     ### [TODO: Add scalar map stats] ###
