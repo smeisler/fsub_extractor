@@ -127,15 +127,20 @@ def visualize_sub_bundles(
             saggital_actor.shape[0] - (saggital_actor.shape[0] // 2)
         ) * saggital_offset
         saggital_actor.display(
-            saggital_actor.shape[0] // 2 + (saggital_offset), None, None
+            saggital_actor.shape[0] // 2 + int(saggital_offset), None, None
         )
         figure.add(saggital_actor)
 
     cam = figure.GetActiveCamera()
     cam.SetViewUp(0, 0, 0)
     if camera_angle == "saggital":
-        cam.Yaw(270)
-        cam.Roll(90)
+    	if hemi == 'lh':
+    		cam.Yaw(270)
+    		cam.Roll(90)
+
+    	if hemi == 'rh':
+			cam.Yaw(90)
+			cam.Roll(270)
 
     if interactive:
         window.show(figure)
