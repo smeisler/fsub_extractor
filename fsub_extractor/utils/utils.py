@@ -318,6 +318,7 @@ def project_roi(roi_in, fs_dir, subject, hemi, outpath_base, overwrite):
             "0.05",
         ]
         run_command(cmd_mri_label2vol)
+        
     if roi_surf[-4:] == ".mgz":
         print("Dilating FS MGZ surface file")
         # out_path = roi_surf.replace(".mgz",".projected.nii.gz")
