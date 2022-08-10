@@ -17,15 +17,16 @@ import numpy as np
 def visualize_sub_bundles(orig_bundle,fsub_bundle, ref_anat, fig_path, fname, 
 	roi1, roi2 = None, orig_color = [.8,.8,0],fsub_color = [.2,.6,1],
 	roi1_color = [.2,1,1],roi2_color = [.2,1,1],
-	interactive = False):
+	interactive = False, show_anat = False, 
+	axial_offset = 0, saggital_offset = 0,camera_angle = "saggital"):
 
 # Takes in tck and nifti files and makes a fury visualization 
 # 
 # 
 # 	Inputs: orig_bundle: Original bundle (.tck)
 #			fsub_bundle: Sub bundle output (.tck)
-#			ref_anat: Reference anatomy (e.g., fa.nii.gz)
-# 			fig_path = path to save the figure
+#			ref_anat: Reference anatomy (.nii.gz)
+# 			fig_path = Path to save the figure
 #			fname = filename (.png)
 # 			roi1: ROI that was used to create sub bundle file (.nii.gz)
 #			roi2 (Optional): Second ROI that was used to 
@@ -34,7 +35,14 @@ def visualize_sub_bundles(orig_bundle,fsub_bundle, ref_anat, fig_path, fname,
 #			fsub_color (Optional): Color for fsub bundle ([R,G,B])
 #			roi1_color (Optional): Color for ROI1 ([R,G,B])
 #			roi2_color (Optional): Color for ROI2 ([R,G,B])
-# 			Interactive: Make interacctive fury visualization (True) or save out screenshot (False; default)
+# 			Interactive (Optional): Make interactive fury visualization (True) or save out screenshot (default = False)
+# 			show_anat (Optional): Whether to overlay anatomy on the figure (default = False)
+#			axial_offset (Optional): Where to display axial slice (-1,1) where -1 is bottom of image and 1 is top. 
+# 			(default = 0, which is the middle of the image)
+#			saggital_offset (Optional): Where to display saggital slice (-1,1) where -1 is left of image and 1 is right. 
+# 			(default = 0, which is the middle of the image)
+#			camera_angle (Optional): Angle for screenshot ('saggital' (default) or 'axial')
+
 
 # Set defaults 
 
@@ -89,6 +97,38 @@ def visualize_sub_bundles(orig_bundle,fsub_bundle, ref_anat, fig_path, fname,
                                        roi2_color, roi_opacity)
 		figure.add(roi2_actor)
 
+	if show_anat:
+		data = reference_anatomy.get_data()
+		affine = reference_anatomy.affine
+
+		# restrict values for visualization
+		mean, std = data[data > 0].mean(), data[data > 0].std()
+		value_range = (mean - 0.5 * std, mean + 1.5 * std)
+
+		# make slice actor 
+		slice_actor = actor.slicer(data, affine, value_range)
+
+		# calculate where to display the image based on the offset 
+		axial_offset = (slice_actor.shape[1] - (slice_actor.shape[1]//2))*axial_offset
+		slice_actor.display(None, None, slice_actor.shape[1]//2+int(axial_offset))
+		figure.add(slice_actor)
+
+		# add to figure 
+		figure.add(slice_actor)
+
+		# make a copy to make a saggital slice 
+		saggital_actor = slice_actor.copy()
+
+		# calculate where to display the image based on the offset 
+		saggital_offset = (saggital_actor.shape[0] - (saggital_actor.shape[0]//2))*saggital_offset
+		saggital_actor.display(saggital_actor.shape[0]//2+(saggital_offset), None, None)
+		figure.add(saggital_actor)
+
+	cam = figure.GetActiveCamera()
+	cam.SetViewUp(0, 0, 0)
+	if (camera_angle == "saggital"):
+		cam.Yaw(270)
+		cam.Roll(90)
 
 	if interactive:
 		window.show(figure)
