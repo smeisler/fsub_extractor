@@ -16,9 +16,8 @@ def get_parser():
         required=True,
     )
     parser.add_argument(
-        "--tck-file",
-        "--tck_file",
-        help="Path to tract file (.tck). Should be in the same space as FreeSurfer and scalar map inputs.",
+        "--tract",
+        help="Path to tract file (.tck or .trk). Should be in the same space as FreeSurfer and scalar map inputs.",
         type=op.abspath,
         required=True,
     )
@@ -183,7 +182,7 @@ def main():
 
     main = extractor(
         subject=args.subject,
-        tck_file=args.tck_file,
+        tract=args.tract,
         roi1=args.roi1,
         fs_dir=args.fs_dir,
         hemi=args.hemi,
@@ -213,7 +212,7 @@ def main():
 
 def extractor(
     subject,
-    tck_file,
+    tract,
     roi1,
     fs_dir,
     #fs_license,
@@ -278,9 +277,11 @@ def extractor(
     ):
         raise Exception("ROI file " + roi2 + " is not of a supported file type.")
 
-    # 3. Make sure TCK file exist
-    if op.exists(tck_file) == False:
-        raise Exception("TCK file " + tck_file + " is not found on the system.")
+    # 3. Make sure tract file exist
+    if op.exists(tract) == False:
+        raise Exception("Tract file " + tract+ " is not found on the system.")
+    if tract[-4:] not in [".trk", ".tck"]:
+        raise Exception("Tract file " + tract+ " is not of a supported file type.")
 
     # 4. Check if gmwmi exists or can be created if needed
     if gmwmi != None and op.exists(gmwmi) == False:
@@ -375,6 +376,13 @@ def extractor(
     else:
         intersected_roi = rois_in
 
+    ### Convert .trk to .tck if needed ###
+    if tract[-4:] == ".trk":
+        print("Converting .trk to .tck")
+        tck_file = trk_to_tck(tract, gmwmi, out_dir, overwrite)
+    else:
+        tck_file = tract
+        
     ### Run MRtrix Tract Extraction ###
     print("\n Extracing the Sub-Bundle \n")
     extracted_tck = extract_tck_mrtrix(
@@ -401,7 +409,7 @@ def extractor(
             show_anat = True
 
         visualize_sub_bundles(
-            orig_bundle=tck_file,
+            orig_bundle=tract,
             fsub_bundle=extracted_tck,
             ref_anat=ref_anat,
             outpath_base=outpath_base,

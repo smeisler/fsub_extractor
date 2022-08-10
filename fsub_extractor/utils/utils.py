@@ -94,7 +94,7 @@ def trk_to_tck(trk_file, ref, out_dir, overwrite):
     """
     from dipy.io.streamline import load_tractogram,save_tractogram
     trk_loaded = load_tractogram(trk_file, ref)
-    filename = trk_file.basename().replace(".trk",".tck")
+    filename = op.basename(trk_file).replace(".trk",".tck")
     tck_file = op.join(out_dir,filename)
     save_tractogram(trk_loaded, tck_file)
     return tck_file
