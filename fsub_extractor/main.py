@@ -364,7 +364,7 @@ def extractor(
     outpath_base = op.join(out_dir, subject, out_prefix)
     scratch_base = op.join(scratch, subject + "_scratch", out_prefix)
 
-    #TODO: Parallelize GMWMI creation, roi projection/intersection, and trk conversion
+    #TODO: Parallelize GMWMI creation, roi projection/intersection
     ### Create a GMWMI, intersect with ROI ###
     if skip_gmwmi_intersection == False:
         if gmwmi == None:
@@ -411,6 +411,7 @@ def extractor(
         )
 
         ### Intersect ROI with GMWMI ###
+    if skip_gmwmi_intersection == False:
         print("\n Intersecting ROI(s) with GMWMI \n")
         intersected_roi = intersect_gmwmi(rois_in, gmwmi, outpath_base, overwrite)
     else:
