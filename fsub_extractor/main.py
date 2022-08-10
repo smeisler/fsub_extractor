@@ -70,6 +70,13 @@ def get_parser():
         default=4.0,
     )
     parser.add_argument(
+        "--projfrac-params",
+        "--projfrac_params",
+        help="Comma delimited list (no spaces) of projfrac parameters for mri_surf2vol / mri_label2vol. Provided as start,stop,delta. Default is --projfrac-params='-2,0,0.05'. Start must be negative to project into white matter.",
+        default="-2,0,0.05",
+        metavar=("START,STOP,DELTA"),
+    )
+    parser.add_argument(
         "--out-dir",
         "--out_dir",
         help="Directory where outputs will be stored (a subject-folder will be created there if it does not exist).",
@@ -127,26 +134,30 @@ def get_parser():
     parser.add_argument(
         "--orig-color",
         "--orig_color",
-        help="Comma-delimited (no spaces) color spec for original bundle in visualization, as R,G,B. Default is 0.8,0.8,0.",
+        help="Comma-delimited (no spaces) color spec for original bundle in visualization, as fractional R,G,B. Default is 0.8,0.8,0.",
         default="0.8,0.8,0",
+        metavar=("R,G,B"),
     )
     parser.add_argument(
         "--fsub-color",
         "--fsub_color",
-        help="Comma-delimited (no spaces) color spec for FSuB bundle in visualization, as R,G,B. Default is 0.2,0.6,1.",
+        help="Comma-delimited (no spaces) color spec for FSuB bundle in visualization, as fractional R,G,B. Default is 0.2,0.6,1.",
         default="0.2,0.6,1",
+        metavar=("R,G,B"),
     )
     parser.add_argument(
         "--roi1-color",
         "--roi1_color",
-        help="Comma-delimited (no spaces) color spec for ROI1 in visualization, as R,G,B. Default is 0.2,1,1.",
+        help="Comma-delimited (no spaces) color spec for ROI1 in visualization, as fractional R,G,B. Default is 0.2,1,1.",
         default="0.2,1,1",
+        metavar=("R,G,B"),
     )
     parser.add_argument(
         "--roi2-color",
         "--roi2_color",
-        help="Comma-delimited (no spaces) color spec for ROI2 in visualization, as R,G,B. Default is 0.2,1,1.",
+        help="Comma-delimited (no spaces) color spec for ROI2 in visualization, as fractional R,G,B. Default is 0.2,1,1.",
         default="0.2,1,1",
+        metavar=("R,G,B"),
     )
     parser.add_argument(
         "--img-viz",
@@ -158,15 +169,15 @@ def get_parser():
         "--axial-offset",
         "--axial_offset",
         help="Float (-1,1) describing where to display axial slice. -1 is bottom, 1 is top. Default is 0.0.",
-        type=int,
-        default=0 # TODO: get floats to work
+        type=float,
+        default=0.0 # TODO: get floats to work
     )
     parser.add_argument(
         "--saggital-offset",
         "--saggital_offset",
         help="Float (-1,1) describing where to display saggital slice. -1 is left, 1 is right. Default is 0.0.",
-        type=int,
-        default=0 # TODO: get floats to work
+        type=float,
+        default=0.0 # TODO: get floats to work
     )
     parser.add_argument(
         "--camera-angle",
@@ -174,7 +185,6 @@ def get_parser():
         help="Camera angle for visualization. Choices are either 'saggital' or 'axial'. Default is 'saggital.'",
         default="saggital"
     )
-    
 
     return parser
 
@@ -197,6 +207,7 @@ def main():
         roi2=args.roi2,
         scalars=args.scalars,
         search_dist=str(args.search_dist),
+        projfrac_params=args.projfrac_params,
         out_dir=args.out_dir,
         out_prefix=args.out_prefix,
         scratch=args.scratch,
@@ -228,6 +239,7 @@ def extractor(
     roi2,
     scalars,
     search_dist,
+    projfrac_params,
     out_dir,
     out_prefix,
     scratch,
@@ -256,18 +268,30 @@ def extractor(
             raise Exception(
                 fs_sub_dir + " does not appear to be a valid FreeSurfer directory."
             )
-        hemi_list = hemi.split(",")
-        for hemisphere in hemi_list:
-            if hemisphere != "lh" and hemisphere != "rh":
+        if hemi == None:
+            raise Exception("--hemi must be specified if not skipping ROI projection")
+        else:
+            hemi_list = hemi.split(",")
+            for hemisphere in hemi_list:
+                if hemisphere != "lh" and hemisphere != "rh":
+                    raise Exception(
+                        "Hemispheres must be either 'lh' or 'rh'. Current input is "
+                        + str(hemi_list)
+                        + "."
+                    )
+            if len(hemi_list) > 2:
                 raise Exception(
-                    "Hemispheres must be either 'lh' or 'rh'. Current input is "
-                    + str(hemi_list)
-                    + "."
+                    "Invalid number of hemispheres specified. Number of inputs should match the number of ROIs (or just one input if both ROIs are in the same hemisphere)."
                 )
-        if len(hemi_list) > 2:
-            raise Exception(
-                "Invalid number of hemispheres specified. Number of inputs should match the number of ROIs (or just one input if both ROIs are in the same hemisphere)."
-            )
+        projfrac_params_list = projfrac_params.split(",")
+        if len(projfrac_params_list) != 3:
+            raise Exception("Invalid number of projfrac-params specified. --projfrac-params should be provided as start,stop,delta.")
+        elif float(projfrac_params_list[0]) >= 0:
+            raise Exception("The 'start' paramater of projfrac-params must be negative to project into white matter.")
+        elif float(projfrac_params_list[-1]) <= 0:
+            raise Exception("The 'delta' paramater of projfrac-params must be positive to iterate correctly.")
+        elif float(projfrac_params_list[1]) <= float(projfrac_params_list[0]):
+            raise Exception("The 'stop' paramater of projfrac-params must be greater than the 'start' parameter.")
 
     # 2. Make sure ROI(s) exist and are the correct file types
     if op.exists(roi1) == False:
@@ -293,16 +317,16 @@ def extractor(
         raise Exception(".trk file passed in without a --trk-ref input.")
 
     # 4. Check if gmwmi exists or can be created if needed
-    if gmwmi != None and op.exists(gmwmi) == False:
-        warnings.warn(
-            "GMWMI was specified but not found on the system. A new one will be created from the FreeSurfer input."
-        )
-        gmwmi = None
     if gmwmi == None and fs_dir == None and skip_gmwmi_intersection == False:
         raise Exception(
             "GMWMI cannot be created unless a FreeSurfer directory is passed into --fs-dir."
         )
-
+    elif gmwmi != None and op.exists(gmwmi) == False:
+        warnings.warn(
+            "GMWMI was specified but not found on the system. A new one will be created from the FreeSurfer input."
+        )
+        gmwmi = None
+    
     # 5. Check if scalar files exist
     if scalars != None:
         scalar_list = [op.abspath(scalar) for scalar in scalars.split(",")]
@@ -345,7 +369,7 @@ def extractor(
     if skip_roi_projection == False:
         print("\n Projecting ROI1 \n")
         roi1_projected = project_roi(
-            roi1, fs_dir, subject, hemi_list[0], outpath_base, overwrite
+            roi1, fs_dir, subject, hemi_list[0], projfrac_params_list, outpath_base, overwrite
         )
     else:
         print("\n Skipping ROI projection \n")
@@ -358,7 +382,7 @@ def extractor(
         if skip_roi_projection == False:
             print("\n Projecting ROI2 \n")
             roi2_projected = project_roi(
-                roi2, fs_dir, subject, hemi_list[-1], outpath_base, overwrite
+                roi2, fs_dir, subject, hemi_list[-1], projfrac_params_list, outpath_base, overwrite
             )
         else:
             roi2_projected = roi2
@@ -416,23 +440,28 @@ def extractor(
         else:
             ref_anat = img_viz
             show_anat = True
-
-        visualize_sub_bundles(
-            orig_bundle=tract,
-            fsub_bundle=extracted_tck,
-            ref_anat=ref_anat,
-            outpath_base=outpath_base,
-            roi1=roi1_projected,
-            roi2=roi2_projected,
-            orig_color=orig_color_list,
-            fsub_color=fsub_color_list,
-            roi1_color=roi1_color_list,
-            roi2_color=roi2_color_list,
-            interactive=interactive_viz,
-            show_anat=show_anat,
-            axial_offset=axial_offset,
-            saggital_offset=saggital_offset,
-            camera_angle=camera_angle,
-        )
+            
+        # Make a picture for each hemisphere passed in
+        if hemi == None:
+            hemi_list = ["lh"]
+        for hemi_to_viz in hemi_list:
+            visualize_sub_bundles(
+                orig_bundle=tract,
+                fsub_bundle=extracted_tck,
+                ref_anat=ref_anat,
+                outpath_base=outpath_base,
+                roi1=roi1_projected,
+                roi2=roi2_projected,
+                orig_color=orig_color_list,
+                fsub_color=fsub_color_list,
+                roi1_color=roi1_color_list,
+                roi2_color=roi2_color_list,
+                interactive=interactive_viz,
+                show_anat=show_anat,
+                axial_offset=axial_offset,
+                saggital_offset=saggital_offset,
+                camera_angle=camera_angle,
+                hemi=hemi_to_viz,
+            )
     
     ### [TODO: Add scalar map stats] ###

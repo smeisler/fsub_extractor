@@ -21,32 +21,36 @@ def visualize_sub_bundles(
     axial_offset=0,
     saggital_offset=0,
     camera_angle="saggital",
+    hemi="lh",
 ):
+    """ Takes in tck and nifti files and makes a fury visualization
 
-    # Takes in tck and nifti files and makes a fury visualization
-    #
-    #
-    # 	Inputs: orig_bundle: Original bundle (.tck)
-    # 			fsub_bundle: Sub bundle output (.tck)
-    # 			ref_anat: Reference anatomy (.nii.gz)
-    # 			fig_path = Path to save the figure
-    # 			fname = filename (.png)
-    # 			roi1: ROI that was used to create sub bundle file (.nii.gz)
-    # 			roi2 (Optional): Second ROI that was used to
-    # 					create pairwise sub-bundle (.nii.gz)
-    # 			orig_color (Optional): Color for original bundle ([R,G,B])
-    # 			fsub_color (Optional): Color for fsub bundle ([R,G,B])
-    # 			roi1_color (Optional): Color for ROI1 ([R,G,B])
-    # 			roi2_color (Optional): Color for ROI2 ([R,G,B])
-    # 			Interactive (Optional): Make interactive fury visualization (True) or save out screenshot (default = False)
-    # 			show_anat (Optional): Whether to overlay anatomy on the figure (default = False)
-    # 			axial_offset (Optional): Where to display axial slice (-1,1) where -1 is bottom of image and 1 is top.
-    # 			(default = 0, which is the middle of the image)
-    # 			saggital_offset (Optional): Where to display saggital slice (-1,1) where -1 is left of image and 1 is right.
-    # 			(default = 0, which is the middle of the image)
-    # 			camera_angle (Optional): Angle for screenshot ('saggital' (default) or 'axial')
+    Parameters
+    ==========
+    orig_bundle: Original bundle (.tck)
+    fsub_bundle: Sub bundle output (.tck)
+    ref_anat: Reference anatomy (.nii.gz)
+    fig_path = Path to save the figure
+    fname = filename (.png)
+    roi1: ROI that was used to create sub bundle file (.nii.gz)
+    roi2 (Optional): Second ROI that was used to create pairwise sub-bundle (.nii.gz)
+    orig_color (Optional): Color for original bundle ([R,G,B])
+    fsub_color (Optional): Color for fsub bundle ([R,G,B])
+    roi1_color (Optional): Color for ROI1 ([R,G,B])
+    roi2_color (Optional): Color for ROI2 ([R,G,B])
+    Interactive (Optional): Make interactive fury visualization (True) or save out screenshot (default = False)
+    show_anat (Optional): Whether to overlay anatomy on the figure (default = False)
+    axial_offset (Optional): Where to display axial slice (-1,1) where -1 is bottom of image and 1 is top.
+        (default = 0, which is the middle of the image)
+    saggital_offset (Optional): Where to display saggital slice (-1,1) where -1 is left of image and 1 is right.
+        (default = 0, which is the middle of the image)
+    camera_angle (Optional): Angle for screenshot ('saggital' (default) or 'axial')
+    hemi (Optional): For saggital picture, what hemisphere to view from. Accepts either 'lh' or 'rh'.
 
-    # Set defaults
+    Outputs
+    =======
+    Function saves out image to the out_dir
+    """
 
     # Load in reference anatomy
     reference_anatomy = nib.load(ref_anat)
