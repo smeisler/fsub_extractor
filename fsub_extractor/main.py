@@ -37,14 +37,15 @@ def get_parser():
         "--hemi",
         help="FreeSurfer hemisphere name(s) corresponding to locations of the ROIs, separated by a comma (no spaces) if different for two ROIs (e.g 'lh,rh'). Required unless --skip-roi-proj is specified.",
     )
-    #parser.add_argument(
+    # parser.add_argument(
     #    "--fs-license",
     #    "--fs-license",
     #    help="Path to FreeSurfer license.",
     #    type=op.abspath,
-    #)  # TODO: MAKE REQUIRED LATER
+    # )  # TODO: MAKE REQUIRED LATER
     parser.add_argument(
-        "--trk-ref", "--trk_ref",
+        "--trk-ref",
+        "--trk_ref",
         help="Path to reference file, if passing in a .trk file. Typically a nifti-related object from the native diffusion used for streamlines generation",
         type=op.abspath,
     )
@@ -170,20 +171,20 @@ def get_parser():
         "--axial_offset",
         help="Float (-1,1) describing where to display axial slice. -1 is bottom, 1 is top. Default is 0.0.",
         type=float,
-        default=0.0 # TODO: get floats to work
+        default=0.0,  # TODO: get floats to work
     )
     parser.add_argument(
         "--saggital-offset",
         "--saggital_offset",
         help="Float (-1,1) describing where to display saggital slice. -1 is left, 1 is right. Default is 0.0.",
         type=float,
-        default=0.0 # TODO: get floats to work
+        default=0.0,  # TODO: get floats to work
     )
     parser.add_argument(
         "--camera-angle",
         "--camera_angle",
         help="Camera angle for visualization. Choices are either 'saggital' or 'axial'. Default is 'saggital.'",
-        default="saggital"
+        default="saggital",
     )
 
     return parser
@@ -192,7 +193,7 @@ def get_parser():
 def main():
 
     # Parse arguments and run the main code
-    parser =  get_parser()
+    parser = get_parser()
     args = parser.parse_args()
 
     main = extractor(
@@ -201,7 +202,7 @@ def main():
         roi1=args.roi1,
         fs_dir=args.fs_dir,
         hemi=args.hemi,
-        #fs_license=args.fs_license,
+        # fs_license=args.fs_license,
         trk_ref=args.trk_ref,
         gmwmi=args.gmwmi,
         roi2=args.roi2,
@@ -233,7 +234,7 @@ def extractor(
     roi1,
     fs_dir,
     hemi,
-    #fs_license,
+    # fs_license,
     trk_ref,
     gmwmi,
     roi2,
@@ -290,13 +291,21 @@ def extractor(
         # Check projfrac-params
         projfrac_params_list = projfrac_params.split(",")
         if len(projfrac_params_list) != 3:
-            raise Exception("Invalid number of projfrac-params specified. --projfrac-params should be provided as start,stop,delta.")
+            raise Exception(
+                "Invalid number of projfrac-params specified. --projfrac-params should be provided as start,stop,delta."
+            )
         elif float(projfrac_params_list[0]) >= 0:
-            raise Exception("The 'start' paramater of projfrac-params must be negative to project into white matter.")
+            raise Exception(
+                "The 'start' paramater of projfrac-params must be negative to project into white matter."
+            )
         elif float(projfrac_params_list[-1]) <= 0:
-            raise Exception("The 'delta' paramater of projfrac-params must be positive to iterate correctly.")
+            raise Exception(
+                "The 'delta' paramater of projfrac-params must be positive to iterate correctly."
+            )
         elif float(projfrac_params_list[1]) <= float(projfrac_params_list[0]):
-            raise Exception("The 'stop' paramater of projfrac-params must be greater than the 'start' parameter.")
+            raise Exception(
+                "The 'stop' paramater of projfrac-params must be greater than the 'start' parameter."
+            )
 
     # 2. Make sure ROI(s) exist and are the correct file types
     if op.exists(roi1) == False:
@@ -331,7 +340,7 @@ def extractor(
             "GMWMI was specified but not found on the system. A new one will be created from the FreeSurfer input."
         )
         gmwmi = None
-    
+
     # 5. Check if scalar files exist
     if scalars != None:
         scalar_list = [op.abspath(scalar) for scalar in scalars.split(",")]
@@ -346,10 +355,14 @@ def extractor(
         raise Exception("Scratch directory " + scratch + " not found on the system.")
 
     # 7. Make sure FS license is valid [TODO: HOW??]
-    
+
     # 8. Make sure camera angle is valid
     if camera_angle != "saggital" and camera_angle != "axial":
-        raise Exception("Camera angle must be either 'saggital' or 'axial'. '" + camera_angle + "' was specified.")
+        raise Exception(
+            "Camera angle must be either 'saggital' or 'axial'. '"
+            + camera_angle
+            + "' was specified."
+        )
 
     ### Prepare output directories ###
     # Add an underscore to separate prefix from file names if a prefix is specified
@@ -364,13 +377,13 @@ def extractor(
     outpath_base = op.join(out_dir, subject, out_prefix)
     scratch_base = op.join(scratch, subject + "_scratch", out_prefix)
 
-    #TODO: Parallelize GMWMI creation, roi projection/intersection
+    # TODO: Parallelize GMWMI creation, roi projection/intersection
     ### Create a GMWMI, intersect with ROI ###
     if skip_gmwmi_intersection == False:
         if gmwmi == None:
             print("\n Creating a GMWMI \n")
             gmwmi = anat_to_gmwmi(fs_sub_dir, outpath_base, overwrite)
-            
+
     ### Set flag for whether two rois were passed in ###
     if roi2 != None:
         two_rois = True
@@ -381,7 +394,13 @@ def extractor(
     if skip_roi_projection == False:
         print("\n Projecting ROI1 \n")
         roi1_projected = project_roi(
-            roi1, fs_dir, subject, hemi_list[0], projfrac_params_list, outpath_base, overwrite
+            roi1,
+            fs_dir,
+            subject,
+            hemi_list[0],
+            projfrac_params_list,
+            outpath_base,
+            overwrite,
         )
     else:
         print("\n Skipping ROI projection \n")
@@ -394,11 +413,17 @@ def extractor(
         if skip_roi_projection == False:
             print("\n Projecting ROI2 \n")
             roi2_projected = project_roi(
-                roi2, fs_dir, subject, hemi_list[-1], projfrac_params_list, outpath_base, overwrite
+                roi2,
+                fs_dir,
+                subject,
+                hemi_list[-1],
+                projfrac_params_list,
+                outpath_base,
+                overwrite,
             )
         else:
             roi2_projected = roi2
-            
+
         ### Merge ROIS ###
         print("\n Merging ROIs \n")
         roi1_basename = op.basename(roi1_projected).removesuffix(".nii.gz")
@@ -423,7 +448,7 @@ def extractor(
         tck_file = trk_to_tck(tract, gmwmi, out_dir, overwrite)
     else:
         tck_file = tract
-        
+
     ### Run MRtrix Tract Extraction ###
     print("\n Extracing the sub-bundle \n")
     extracted_tck = extract_tck_mrtrix(
@@ -448,7 +473,7 @@ def extractor(
         else:
             ref_anat = img_viz
             show_anat = True
-            
+
         # Make a picture for each hemisphere passed in
         if hemi == None:
             hemi_list = ["lh"]
@@ -471,5 +496,5 @@ def extractor(
                 camera_angle=camera_angle,
                 hemi=hemi_to_viz,
             )
-    
+
     ### [TODO: Add scalar map stats] ###

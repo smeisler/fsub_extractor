@@ -23,7 +23,7 @@ def visualize_sub_bundles(
     camera_angle="saggital",
     hemi="lh",
 ):
-    """ Takes in tck and nifti files and makes a fury visualization
+    """Takes in tck and nifti files and makes a fury visualization
 
     Parameters
     ==========
@@ -134,15 +134,17 @@ def visualize_sub_bundles(
     cam = figure.GetActiveCamera()
     cam.SetViewUp(0, 0, 0)
     if camera_angle == "saggital":
-    	if hemi == 'lh':
-    		cam.Yaw(270)
-    		cam.Roll(90)
+        if hemi == "lh":
+            cam.Yaw(270)
+            cam.Roll(90)
 
-    	if hemi == 'rh':
-			cam.Yaw(90)
-			cam.Roll(270)
+        if hemi == "rh":
+            cam.Yaw(90)
+            cam.Roll(270)
 
     if interactive:
         window.show(figure)
 
-    window.record(figure, out_path=(outpath_base + "FIGURE.png"), size=(1200, 900)) #TODO: make better file output name
+    window.record(
+        figure, out_path=(outpath_base + "FIGURE.png"), size=(1200, 900)
+    )  # TODO: make better file output name

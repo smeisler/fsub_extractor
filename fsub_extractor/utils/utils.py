@@ -3,8 +3,9 @@ import os
 import shutil
 import subprocess
 
+
 def overwrite_check(file):
-    """ Checks whether a file exists. If so, aborts the function.
+    """Checks whether a file exists. If so, aborts the function.
     Parameters
     ==========
     file: str
@@ -20,12 +21,12 @@ def overwrite_check(file):
             + file
             + " already exists. Aborting program. Specify --overwrite if you would like to overwrite files."
         )
-        
+
     return None
 
 
 def find_program(program):
-    """ Checks that a command line tools is executable on path.
+    """Checks that a command line tools is executable on path.
     Parameters
     ==========
     program: str
@@ -54,7 +55,7 @@ def find_program(program):
 
 
 def run_command(cmd_list):
-    """ Interface for running CLI commands in Python. Crashes if command returns an error.
+    """Interface for running CLI commands in Python. Crashes if command returns an error.
     Parameters
     ==========
     cmd_list: list
@@ -73,12 +74,12 @@ def run_command(cmd_list):
             + function_name
             + " exited with errors. See message above for more information."
         )
-        
+
     return None
 
 
 def trk_to_tck(trk_file, ref, out_dir, overwrite):
-    """ Converts a .trk file to .tck using DIPY
+    """Converts a .trk file to .tck using DIPY
     Parameters
     ==========
     trk_file: str
@@ -95,17 +96,18 @@ def trk_to_tck(trk_file, ref, out_dir, overwrite):
     tck_file: str
             Path to output .tck file
     """
-    from dipy.io.streamline import load_tractogram,save_tractogram
+    from dipy.io.streamline import load_tractogram, save_tractogram
+
     trk_loaded = load_tractogram(trk_file, ref)
-    filename = op.basename(trk_file).replace(".trk",".tck")
+    filename = op.basename(trk_file).replace(".trk", ".tck")
     tck_file = op.join(out_dir, filename)
     save_tractogram(trk_loaded, tck_file)
-    
+
     return tck_file
 
 
 def anat_to_gmwmi(anat, outpath_base, overwrite):
-    """ Creates a gray-matter-white-matter-interface (GMWMI) from a T1 or FreeSurfer image
+    """Creates a gray-matter-white-matter-interface (GMWMI) from a T1 or FreeSurfer image
     If a T1 image is passed (not recommended), uses FSL FAST to create 5TT and GMWMI
     If a FreeSurfer directory is passed in, uses the surface reconstruction to create 5TT and GMWMI
 
@@ -133,9 +135,7 @@ def anat_to_gmwmi(anat, outpath_base, overwrite):
         )
         fivett_algo = "hsvs"
     elif anat[-7:] == ".nii.gz" or anat[-4:] == ".nii" or anat[-4:] == ".mif":
-        print(
-            "T1 image detected: Using FSL 5ttgen algorithm to generate GMWMWI"
-        )
+        print("T1 image detected: Using FSL 5ttgen algorithm to generate GMWMWI")
         fivett_algo = "fsl"
     else:
         raise Exception(
@@ -182,13 +182,15 @@ def anat_to_gmwmi(anat, outpath_base, overwrite):
     else:
         overwrite_check(outpath_base + "gmwmi_bin.nii.gz")
     run_command(cmd_mrthreshold)
-    
+
     return outpath_base + "gmwmi_bin.nii.gz"
 
 
-def project_roi(roi_in, fs_dir, subject, hemi, projfrac_params, outpath_base, overwrite):
+def project_roi(
+    roi_in, fs_dir, subject, hemi, projfrac_params, outpath_base, overwrite
+):
     # TODO: make projfrac parameters an input argument
-    """ Projects input ROI into the white matter. If volumetric ROI is input, starts by mapping it to the surface.
+    """Projects input ROI into the white matter. If volumetric ROI is input, starts by mapping it to the surface.
 
     Parameters
     ==========
@@ -212,7 +214,7 @@ def project_roi(roi_in, fs_dir, subject, hemi, projfrac_params, outpath_base, ov
     Function returns path to the projected ROI.
     Image is saved out to outpath_base + gmwmi_roi_intersect.nii.gz
     """
-    
+
     os.environ["SUBJECTS_DIR"] = fs_dir
     if roi_in[-7:] == ".nii.gz":
         print("Using volumetric ROI projection pipeline")
@@ -264,7 +266,7 @@ def project_roi(roi_in, fs_dir, subject, hemi, projfrac_params, outpath_base, ov
             projfrac_params[2],
         ]
         run_command(cmd_mri_label2vol)
-        
+
     if roi_surf[-4:] == ".mgz":
         print("Projecting FS .mgz surface file")
         # out_path = roi_surf.replace(".mgz",".projected.nii.gz")
@@ -296,8 +298,10 @@ def project_roi(roi_in, fs_dir, subject, hemi, projfrac_params, outpath_base, ov
         return out_path
 
 
-def intersect_gmwmi(roi_in, gmwmi, outpath_base, overwrite): # TODO: Fix so that it is meant to run on individual ROIs, not combined
-    """ Intersects an input ROI file with the GMWMI
+def intersect_gmwmi(
+    roi_in, gmwmi, outpath_base, overwrite
+):  # TODO: Fix so that it is meant to run on individual ROIs, not combined
+    """Intersects an input ROI file with the GMWMI
 
     Parameters
     ==========
@@ -315,7 +319,7 @@ def intersect_gmwmi(roi_in, gmwmi, outpath_base, overwrite): # TODO: Fix so that
     Function returns path to the intersected image.
     Image is saved out to outpath_base + gmwmi_roi_intersect.nii.gz
     """
-    
+
     mrcalc = find_program("mrcalc")
     cmd_mrcalc = [
         mrcalc,
@@ -324,19 +328,19 @@ def intersect_gmwmi(roi_in, gmwmi, outpath_base, overwrite): # TODO: Fix so that
         "-mult",
         outpath_base + "gmwmi_roi_intersect.nii.gz",
     ]
-    
+
     if overwrite == False:
         overwrite_check(outpath_base + "gmwmi_roi_intersect.nii.gz")
     else:
         cmd_mrcalc += ["-force"]
-        
+
     run_command(cmd_mrcalc)
 
     return outpath_base + "gmwmi_roi_intersect.nii.gz"
 
 
-def merge_rois(roi1, roi2, out_file, overwrite): # TODO: REFACTOR THIS
-    """ Creates the input ROI atlas-like file to be passed into tck2connectome.
+def merge_rois(roi1, roi2, out_file, overwrite):  # TODO: REFACTOR THIS
+    """Creates the input ROI atlas-like file to be passed into tck2connectome.
         Multiplies the second ROI file passed by 2, and merges this file with the first file.
         Returns the merged file
     Parameters
@@ -357,14 +361,13 @@ def merge_rois(roi1, roi2, out_file, overwrite): # TODO: REFACTOR THIS
 
     """
 
-
     labelled_roi2 = roi2.removesuffix(".nii.gz") + "_labelled.nii.gz"
-    
+
     # Abort if file already exists and overwriting not allowed
     if overwrite == False:
         overwrite_check(labelled_roi2)
         overwrite_check(out_file)
-        
+
     mrcalc = find_program("mrcalc")
 
     # Multiply second ROI by 2
@@ -381,7 +384,7 @@ def merge_rois(roi1, roi2, out_file, overwrite): # TODO: REFACTOR THIS
 def extract_tck_mrtrix(
     tck_file, rois_in, outpath_base, search_dist, two_rois, overwrite
 ):
-    """ Uses MRtrix tools to extract the TCK file that connects to the ROI(s)
+    """Uses MRtrix tools to extract the TCK file that connects to the ROI(s)
     If the ROI image contains one value, finds all streamlines that connect to that region
     If the ROI image contains two values, finds all streamlines that connect the two regions
 
