@@ -44,6 +44,11 @@ def get_parser():
     #    type=op.abspath,
     #)  # TODO: MAKE REQUIRED LATER
     parser.add_argument(
+        "--trk-ref", "--trk_ref"
+        help="Path to reference file, if passing in a .trk file. Typically a nifti-related object from the native diffusion used for streamlines generation",
+        type=op.abspath,
+    )
+    parser.add_argument(
         "--gmwmi",
         help="Path to GMWMI image (.nii.gz or .mif). If not specified or not found, it will be created from FreeSurfer inputs. Image must be a binary mask. Ignored if --skip-gmwmi-intersection is specified.",
         type=op.abspath,
@@ -152,21 +157,21 @@ def get_parser():
     parser.add_argument(
         "--axial-offset",
         "--axial_offset",
-        help="Float (-1,1) describing where to display axial slice. -1 is bottom, 1 is top. Default is 0.0",
+        help="Float (-1,1) describing where to display axial slice. -1 is bottom, 1 is top. Default is 0.0.",
         type=int,
         default=0 # TODO: get floats to work
     )
     parser.add_argument(
         "--saggital-offset",
         "--saggital_offset",
-        help="Float (-1,1) describing where to display saggital slice. -1 is left, 1 is right. Default is 0.0",
+        help="Float (-1,1) describing where to display saggital slice. -1 is left, 1 is right. Default is 0.0.",
         type=int,
         default=0 # TODO: get floats to work
     )
     parser.add_argument(
         "--camera-angle",
         "--camera_angle",
-        help="Camera angle for visualization. Choices are either 'saggital' or 'axial'. Default is 'saggital'",
+        help="Camera angle for visualization. Choices are either 'saggital' or 'axial'. Default is 'saggital.'",
         default="saggital"
     )
     
@@ -187,6 +192,7 @@ def main():
         fs_dir=args.fs_dir,
         hemi=args.hemi,
         #fs_license=args.fs_license,
+        trk_ref=args.trk_ref,
         gmwmi=args.gmwmi,
         roi2=args.roi2,
         scalars=args.scalars,
@@ -215,8 +221,9 @@ def extractor(
     tract,
     roi1,
     fs_dir,
-    #fs_license,
     hemi,
+    #fs_license,
+    trk_ref,
     gmwmi,
     roi2,
     scalars,
@@ -277,11 +284,13 @@ def extractor(
     ):
         raise Exception("ROI file " + roi2 + " is not of a supported file type.")
 
-    # 3. Make sure tract file exist
+    # 3. Make sure tract file is okay
     if op.exists(tract) == False:
         raise Exception("Tract file " + tract+ " is not found on the system.")
     if tract[-4:] not in [".trk", ".tck"]:
         raise Exception("Tract file " + tract+ " is not of a supported file type.")
+    if tract[-4:] == ".trk" and trk_ref == None:
+        raise Exception(".trk file passed in without a --trk-ref input.")
 
     # 4. Check if gmwmi exists or can be created if needed
     if gmwmi != None and op.exists(gmwmi) == False:
@@ -378,13 +387,13 @@ def extractor(
 
     ### Convert .trk to .tck if needed ###
     if tract[-4:] == ".trk":
-        print("Converting .trk to .tck")
+        print("\n Converting .trk to .tck \n")
         tck_file = trk_to_tck(tract, gmwmi, out_dir, overwrite)
     else:
         tck_file = tract
         
     ### Run MRtrix Tract Extraction ###
-    print("\n Extracing the Sub-Bundle \n")
+    print("\n Extracing the sub-bundle \n")
     extracted_tck = extract_tck_mrtrix(
         tck_file, intersected_roi, outpath_base, search_dist, two_rois, overwrite
     )
