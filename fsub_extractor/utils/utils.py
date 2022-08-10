@@ -19,7 +19,7 @@ def overwrite_check(file):
         raise Exception(
             "Output file "
             + file
-            + "already exists. Aborting program. Specify --overwrite if you would like to overwrite files."
+            + " already exists. Aborting program. Specify --overwrite if you would like to overwrite files."
         )
     return None
 
@@ -259,6 +259,7 @@ def extract_tck_mrtrix(
         "-exclusive",
         "-files",
         "single",
+        "-force",
     ]
     run_command(cmd_connectome2tck)
 
@@ -351,6 +352,7 @@ def project_roi(roi_in, fs_dir, subject, hemi, outpath_base, overwrite):
 
 
 def intersect_gmwmi(rois_in, gmwmi, outpath_base, overwrite):
+
     mrcalc = find_program("mrcalc")
     cmd_mrcalc = [
         mrcalc,
@@ -359,6 +361,12 @@ def intersect_gmwmi(rois_in, gmwmi, outpath_base, overwrite):
         "-mult",
         outpath_base + "gmwmi_roi_intersect.nii.gz",
     ]
+    
+    if overwrite == False:
+        overwrite_check(outpath_base + "gmwmi_roi_intersect.nii.gz")
+    else:
+        cmd_mrcalc += ["-force"]
+        
     run_command(cmd_mrcalc)
 
     return outpath_base + "gmwmi_roi_intersect.nii.gz"

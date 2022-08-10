@@ -2,6 +2,7 @@ import argparse
 import os.path as op
 import warnings
 from fsub_extractor.utils.utils import *
+from fsub_extractor.viz.fury_viz import *
 
 # Add input arguments
 def get_parser():
@@ -137,7 +138,12 @@ def get_parser():
         help="Comma-delimited (no spaces) color spec for ROI2 in visualization, as R,G,B. Default is 0.2,1,1",
         default="0.2,1,1",
     )
-    
+    parser.add_argument(
+        "--img-viz",
+        "--img-viz",
+        help="Path to image to plot in visualization. Must be in same space as DWI/anatomical inputs.",
+        type=op.abspath,
+    )
 
     return parser
 
@@ -170,6 +176,7 @@ def main():
         fsub_color=args.fsub_color,
         roi1_color=args.roi1_color,
         roi2_color=args.roi2_color,
+        img_viz=args.img_viz,
     )
 
 
@@ -195,17 +202,30 @@ def extractor(
     fsub_color,
     roi1_color,
     roi2_color,
+    img_viz,
 ):
 
     # TODO: add docs
 
     ### Check for assertion errors ###
-    # 1. If ROIs are to be projected, make sure FS dir exists
+    # 1. If ROIs are to be projected, make sure FS dir exists and hemispheres are valid
     fs_sub_dir = op.join(fs_dir, subject)
     if skip_roi_projection == False:
         if op.isdir(op.join(fs_sub_dir, "surf")) == False:
             raise Exception(
                 fs_sub_dir + " does not appear to be a valid FreeSurfer directory."
+            )
+        hemi_list = hemi.split(",")
+        for hemisphere in hemi_list:
+            if hemisphere != "lh" and hemisphere != "rh":
+                raise Exception(
+                    "Hemispheres must be either 'lh' or 'rh'. Current input is "
+                    + str(hemi_list)
+                    + "."
+                )
+        if len(hemi_list) > 2:
+            raise Exception(
+                "Invalid number of hemispheres specified. Number of inputs should match the number of ROIs (or just one input if both ROIs are in the same hemisphere)."
             )
 
     # 2. Make sure ROI(s) exist and are the correct file types
@@ -227,21 +247,7 @@ def extractor(
     if op.exists(tck_file) == False:
         raise Exception("TCK file " + tck_file + " is not found on the system.")
 
-    # 4. Make sure hemispheres are valid
-    hemi_list = hemi.split(",")
-    for hemisphere in hemi_list:
-        if hemisphere != "lh" and hemisphere != "rh":
-            raise Exception(
-                "Hemispheres must be either 'lh' or 'rh'. Current input is "
-                + str(hemi_list)
-                + "."
-            )
-    if len(hemi_list) > 2:
-        raise Exception(
-            "Invalid number of hemispheres specified. Number of inputs should match the number of ROIs (or just one input if both ROIs are in the same hemisphere)."
-        )
-
-    # 5. Check if gmwmi exists or can be created if needed
+    # 4. Check if gmwmi exists or can be created if needed
     if gmwmi != None and op.exists(gmwmi) == False:
         warnings.warn(
             "GMWMI was specified but not found on the system. A new one will be created from the FreeSurfer input."
@@ -252,20 +258,20 @@ def extractor(
             "GMWMI cannot be created unless a FreeSurfer directory is passed into --fs-dir."
         )
 
-    # 6. Check if scalar files exist
+    # 5. Check if scalar files exist
     if scalars != None:
         scalar_list = [op.abspath(scalar) for scalar in scalars.split(",")]
         for scalar in scalar_list:
             if op.exists(scalar) == False:
                 raise Exception("Scalar map " + scalar + " not found on the system")
 
-    # 7. Check if out and scratch directories exist
+    # 6. Check if out and scratch directories exist
     if op.isdir(out_dir) == False:
         raise Exception("Output directory " + out_dir + " not found on the system")
     if op.isdir(scratch) == False:
         raise Exception("Scratch directory " + scratch + " not found on the system")
 
-    # 8. Make sure FS license is valid [TODO: HOW??]
+    # 7. Make sure FS license is valid [TODO: HOW??]
 
     ### Prepare output directories ###
     # Add an underscore to separate prefix from file names if a prefix is specified
@@ -298,6 +304,7 @@ def extractor(
 
     if two_rois == False:
         rois_in = roi1_projected
+        roi2_projected = None
     else:
         if skip_roi_projection == False:
             print("\n Projecting ROI2 \n")
@@ -335,8 +342,38 @@ def extractor(
         tck_file, intersected_roi, outpath_base, search_dist, two_rois, overwrite
     )
 
-    print("\n DONE! The extracted tract is located at " + extracted_tck)
+    print("\n The extracted tract is located at " + extracted_tck + "\n")
 
-    ### [TODO: Add bundle visualization] ###
+    ### Visualize the outputs ####
+    # Convert color strings to lists
+    orig_color_list = [float(color) for color in orig_color.split(",")]
+    fsub_color_list = [float(color) for color in fsub_color.split(",")]
+    roi1_color_list = [float(color) for color in roi1_color.split(",")]
+    roi2_color_list = [float(color) for color in roi2_color.split(",")]
 
+    # Set reference / background image if it is specified
+    if img_viz == None:
+        ref_anat = gmwmi
+        show_anat = False
+    else:
+        ref_anat = img_viz
+        show_anat = True
+
+    visualize_sub_bundles(
+        orig_bundle=tck_file,
+        fsub_bundle=extracted_tck,
+        ref_anat=ref_anat,
+        outpath_base=outpath_base,
+        roi1=roi1_projected,
+        roi2=roi2_projected,
+        orig_color=orig_color_list,
+        fsub_color=fsub_color_list,
+        roi1_color=roi1_color_list,
+        roi2_color=roi2_color_list,
+        interactive=interactive_viz,
+        show_anat=show_anat,
+        axial_offset=0,
+        saggital_offset=0,
+        camera_angle="saggital",
+    )
     ### [TODO: Add scalar map stats] ###
