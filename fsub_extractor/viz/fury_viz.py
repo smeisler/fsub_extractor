@@ -146,5 +146,5 @@ def visualize_sub_bundles(
         window.show(figure)
 
     window.record(
-        figure, out_path=(outpath_base + "FIGURE.png"), size=(1200, 900)
+        figure, out_path=(outpath_base + "visualization.png"), size=(1200, 900)
     )  # TODO: make better file output name

@@ -1,6 +1,7 @@
 import argparse
 import os.path as op
 import warnings
+from dask import delayed
 from fsub_extractor.utils.utils import *
 
 # Add input arguments
@@ -390,57 +391,72 @@ def extractor(
     else:
         two_rois = False
 
-    ### Project the ROI(s) into the white matter ###
+    ### Project the ROI(s) into the white matter and intersect with GMWMI ###
     if skip_roi_projection == False:
         print("\n Projecting ROI1 \n")
         roi1_projected = project_roi(
-            roi1,
-            fs_dir,
-            subject,
-            hemi_list[0],
-            projfrac_params_list,
-            outpath_base,
-            overwrite,
+            roi_in=roi1,
+            fs_dir=fs_dir,
+            subject=subject,
+            hemi=hemi_list[0],
+            projfrac_params=projfrac_params_list,
+            outpath_base=op.join(out_dir,op.basename(roi1)),
+            overwrite=overwrite,
         )
     else:
         print("\n Skipping ROI projection \n")
         roi1_projected = roi1
-
+    if skip_gmwmi_intersection == False:
+        print("\n Intersecting ROI1 with GMWMI \n")
+        roi1_intersected = intersect_gmwmi(
+            roi_in=roi1_projected,
+            gmwmi=gmwmi,
+            outpath_base=op.join(out_dir,op.basename(roi1).replace(".nii.gz","_")),
+            overwrite=overwrite
+        )
+    else:
+        roi1_intersected = roi1_projected
+    
+    ### Process ROI2 the same way if specified ###
     if two_rois == False:
-        rois_in = roi1_projected
+        rois_in = roi1_intersected
         roi2_projected = None
+        roi2_intersected = None
     else:
         if skip_roi_projection == False:
             print("\n Projecting ROI2 \n")
-            roi2_projected = project_roi(
-                roi2,
-                fs_dir,
-                subject,
-                hemi_list[-1],
-                projfrac_params_list,
-                outpath_base,
-                overwrite,
+            roi1_projected = project_roi(
+                roi_in=roi2,
+                fs_dir=fs_dir,
+                subject=subject,
+                hemi=hemi_list[-1],
+                projfrac_params=projfrac_params_list,
+                outpath_base=op.join(out_dir,op.basename(roi2)),
+                overwrite=overwrite,
             )
         else:
             roi2_projected = roi2
+        if skip_gmwmi_intersection == False:
+            print("\n Intersecting ROI2 with GMWMI \n")
+            roi1_intersected = intersect_gmwmi(
+                roi_in=roi2_projected,
+                gmwmi=gmwmi,
+                outpath_base=outpath_base,
+                overwrite=overwrite
+            )
+        else:
+            roi2_intersected = roi2_projected
 
         ### Merge ROIS ###
         print("\n Merging ROIs \n")
-        roi1_basename = op.basename(roi1_projected).removesuffix(".nii.gz")
-        roi2_basename = op.basename(roi2_projected).removesuffix(".nii.gz")
+        roi1_basename = op.basename(roi1_intersected).removesuffix(".nii.gz")
+        roi2_basename = op.basename(roi2_intersected).removesuffix(".nii.gz")
         rois_in = merge_rois(
             roi1,
             roi2,
             outpath_base + roi1_basename + "_" + roi2_basename + "_merged.nii.gz",
             overwrite,
         )
-
-        ### Intersect ROI with GMWMI ###
-    if skip_gmwmi_intersection == False:
-        print("\n Intersecting ROI(s) with GMWMI \n")
-        intersected_roi = intersect_gmwmi(rois_in, gmwmi, outpath_base, overwrite)
-    else:
-        intersected_roi = rois_in
 
     ### Convert .trk to .tck if needed ###
     if tract[-4:] == ".trk":
@@ -452,7 +468,7 @@ def extractor(
     ### Run MRtrix Tract Extraction ###
     print("\n Extracing the sub-bundle \n")
     extracted_tck = extract_tck_mrtrix(
-        tck_file, intersected_roi, outpath_base, search_dist, two_rois, overwrite
+        tck_file, rois_in, outpath_base, search_dist, two_rois, overwrite
     )
     print("\n The extracted tract is located at " + extracted_tck + ".\n")
 
