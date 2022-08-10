@@ -2,7 +2,6 @@ import argparse
 import os.path as op
 import warnings
 from fsub_extractor.utils.utils import *
-from fsub_extractor.viz.fury_viz import *
 
 # Add input arguments
 def get_parser():
@@ -385,6 +384,8 @@ def extractor(
 
     ### Visualize the outputs ####
     if skip_viz == False:
+        from fsub_extractor.viz.fury_viz import visualize_sub_bundles
+
         # Convert color strings to lists
         orig_color_list = [float(color) for color in orig_color.split(",")]
         fsub_color_list = [float(color) for color in fsub_color.split(",")]

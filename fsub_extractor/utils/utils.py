@@ -3,7 +3,6 @@ import os
 import shutil
 import subprocess
 
-
 def overwrite_check(file):
     """Checks whether a file exists. If so, aborts the function.
     Parameters
@@ -75,6 +74,30 @@ def run_command(cmd_list):
         )
     return None
 
+def trk_to_tck(trk_file, ref, out_dir, overwrite):
+    """Converts a .trk file to .tck using DIPY
+    Parameters
+    ==========
+    trk_file: str
+            Path to .trk file
+    ref: str
+            Path to image (.nii.gz) in same space as streamlines
+    out_dir: str
+            Path to output directory
+    overwrite: bool
+            Whether to allow overwriting outputs
+
+    Outputs
+    =======
+    tck_file: str
+            Path to output .tck file
+    """
+    from dipy.io.streamline import load_tractogram,save_tractogram
+    trk_loaded = load_tractogram(trk_file, ref)
+    filename = trk_file.basename().replace(".trk",".tck")
+    tck_file = op.join(out_dir,filename)
+    save_tractogram(trk_loaded, tck_file)
+    return tck_file
 
 def merge_rois(roi1, roi2, out_file, overwrite): # TODO: REFACTOR THIS
     """Creates the input ROI atlas-like file to be passed into tck2connectome.
