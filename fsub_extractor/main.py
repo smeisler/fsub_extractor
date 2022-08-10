@@ -261,15 +261,19 @@ def extractor(
     # TODO: add docs
 
     ### Check for assertion errors ###
-    # 1. If ROIs are to be projected, make sure FS dir exists and hemispheres are valid
-    fs_sub_dir = op.join(fs_dir, subject)
+    # 1. If ROIs are to be projected, make sure FS dir exists, hemispheres are valid, and proj-frac params are valid
     if skip_roi_projection == False:
+        # Check FS dir
+        if fs_dir == None:
+            raise Exception("No FreeSurfer directory passed in.")
+        fs_sub_dir = op.join(fs_dir, subject)
         if op.isdir(op.join(fs_sub_dir, "surf")) == False:
             raise Exception(
                 fs_sub_dir + " does not appear to be a valid FreeSurfer directory."
             )
+        # Check hemi(s)
         if hemi == None:
-            raise Exception("--hemi must be specified if not skipping ROI projection")
+            raise Exception("--hemi must be specified if not skipping ROI projection.")
         else:
             hemi_list = hemi.split(",")
             for hemisphere in hemi_list:
@@ -283,6 +287,7 @@ def extractor(
                 raise Exception(
                     "Invalid number of hemispheres specified. Number of inputs should match the number of ROIs (or just one input if both ROIs are in the same hemisphere)."
                 )
+        # Check projfrac-params
         projfrac_params_list = projfrac_params.split(",")
         if len(projfrac_params_list) != 3:
             raise Exception("Invalid number of projfrac-params specified. --projfrac-params should be provided as start,stop,delta.")
@@ -310,9 +315,9 @@ def extractor(
 
     # 3. Make sure tract file is okay
     if op.exists(tract) == False:
-        raise Exception("Tract file " + tract+ " is not found on the system.")
+        raise Exception("Tract file " + tract + " is not found on the system.")
     if tract[-4:] not in [".trk", ".tck"]:
-        raise Exception("Tract file " + tract+ " is not of a supported file type.")
+        raise Exception("Tract file " + tract + " is not of a supported file type.")
     if tract[-4:] == ".trk" and trk_ref == None:
         raise Exception(".trk file passed in without a --trk-ref input.")
 
@@ -359,6 +364,13 @@ def extractor(
     outpath_base = op.join(out_dir, subject, out_prefix)
     scratch_base = op.join(scratch, subject + "_scratch", out_prefix)
 
+    #TODO: Parallelize GMWMI creation, roi projection/intersection, and trk conversion
+    ### Create a GMWMI, intersect with ROI ###
+    if skip_gmwmi_intersection == False:
+        if gmwmi == None:
+            print("\n Creating a GMWMI \n")
+            gmwmi = anat_to_gmwmi(fs_sub_dir, outpath_base, overwrite)
+            
     ### Set flag for whether two rois were passed in ###
     if roi2 != None:
         two_rois = True
@@ -386,6 +398,7 @@ def extractor(
             )
         else:
             roi2_projected = roi2
+            
         ### Merge ROIS ###
         print("\n Merging ROIs \n")
         roi1_basename = op.basename(roi1_projected).removesuffix(".nii.gz")
@@ -397,13 +410,7 @@ def extractor(
             overwrite,
         )
 
-    ### Create a GMWMI, intersect with ROI ###
-    if skip_gmwmi_intersection == False:
-        if gmwmi == None:
-            print("\n Creating a GMWMI \n")
-            gmwmi = anat_to_gmwmi(fs_sub_dir, outpath_base, overwrite)
-
-        # Intersect ROI with GMWMI
+        ### Intersect ROI with GMWMI ###
         print("\n Intersecting ROI(s) with GMWMI \n")
         intersected_roi = intersect_gmwmi(rois_in, gmwmi, outpath_base, overwrite)
     else:
