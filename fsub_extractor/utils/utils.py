@@ -73,9 +73,10 @@ def run_command(cmd_list):
             + function_name
             + " exited with errors. See message above for more information."
         )
+    return None
 
 
-def merge_rois(roi1, roi2, out_file, overwrite):
+def merge_rois(roi1, roi2, out_file, overwrite): # TODO: REFACTOR THIS
     """Creates the input ROI atlas-like file to be passed into tck2connectome.
         Multiplies the second ROI file passed by 2, and merges this file with the first file.
         Returns the merged file
@@ -218,13 +219,14 @@ def extract_tck_mrtrix(
             How far to search ahead of streamlines for ROIs, in mm
     two_rois: bool
             True if two ROIs in rois_in, False, if one ROI in rois_in
-
+    overwrite: bool
+            Whether to allow overwriting outputs
 
     Outputs
     =======
     Function returns the path of the extracted tck file
-    outpath_base + 5tt.nii.gz is the 5TT segmented anatomical image
-    outpath_base + gmwmi.nii.gz is the GMWMI image
+    outpath_base + assignments.txt/connectome.txt describe the streamline-to-node assignments
+    outpath_base + extracted.txt is the extracted sub-bundle
     """
 
     ### tck2connectome
@@ -267,7 +269,30 @@ def extract_tck_mrtrix(
 
 
 def project_roi(roi_in, fs_dir, subject, hemi, outpath_base, overwrite):
-    # [TODO] ADD DOCS
+    # TODO: make projfrac parameters an input argument
+    """Projects input ROI into the white matter. If volumetric ROI is input, starts by mapping it to the surface.
+
+    Parameters
+    ==========
+    roi_in: str
+            Path to input ROI mask file (.nii.gz, .mgz, .label). Should be binary (1 in ROI, 0 elsewhere).
+    fs_dir: str
+            Path to FreeSurfer subjects folder
+    subject: str
+            Subject name. Must match folder name in fs_dir.
+    hemi: str
+            Hemisphere corresponding to the ROI ('lh' or 'rh')
+    outpath_base: str
+            Path to output directory, including output prefix
+    overwrite: bool
+            Whether to allow overwriting outputs
+
+    Outputs
+    =======
+    Function returns path to the projected ROI.
+    Image is saved out to outpath_base + gmwmi_roi_intersect.nii.gz
+    """
+    
     os.environ["SUBJECTS_DIR"] = fs_dir
     if roi_in[-7:] == ".nii.gz":
         print("Using volumetric ROI dilation pipeline")
@@ -348,16 +373,34 @@ def project_roi(roi_in, fs_dir, subject, hemi, outpath_base, overwrite):
         ]
         run_command(cmd_mri_surf2vol)
 
-        return out_path  # EVENTUALLY RETURN PATH TO FINAL ROI
+        return out_path
 
 
-def intersect_gmwmi(rois_in, gmwmi, outpath_base, overwrite):
+def intersect_gmwmi(roi_in, gmwmi, outpath_base, overwrite): # TODO: Fix so that it is meant to run on individual ROIs, not combined
+    """Intersects an input ROI file with the GMWMI
 
+    Parameters
+    ==========
+    rois_in: str
+            Path to input ROI mask file (.nii.gz, .mif). Should be binary (1 in ROI, 0 elsewhere).
+    gmwmi: str
+            Path to gray-matter-white-matter-interface image (.nii.gz, .mif)
+    outpath_base: str
+            Path to output directory, including output prefix
+    overwrite: bool
+            Whether to allow overwriting outputs
+
+    Outputs
+    =======
+    Function returns path to the intersected image.
+    Image is saved out to outpath_base + gmwmi_roi_intersect.nii.gz
+    """
+    
     mrcalc = find_program("mrcalc")
     cmd_mrcalc = [
         mrcalc,
         gmwmi,
-        rois_in,
+        roi_in,
         "-mult",
         outpath_base + "gmwmi_roi_intersect.nii.gz",
     ]
