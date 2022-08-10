@@ -44,7 +44,7 @@ def get_parser():
     #    type=op.abspath,
     #)  # TODO: MAKE REQUIRED LATER
     parser.add_argument(
-        "--trk-ref", "--trk_ref"
+        "--trk-ref", "--trk_ref",
         help="Path to reference file, if passing in a .trk file. Typically a nifti-related object from the native diffusion used for streamlines generation",
         type=op.abspath,
     )
