@@ -15,7 +15,9 @@ def visualize_sub_bundles(
     orig_color=[0.8, 0.8, 0],
     fsub_color=[0.2, 0.6, 1],
     roi1_color=[0.2, 1, 1],
-    roi2_color=[0.2, 1, 1],
+    roi2_color=[1, 0.2, 1],
+    roi_opacity=0.7,
+    fsub_linewidth=3.0,
     interactive=False,
     show_anat=False,
     axial_offset=0,
@@ -77,12 +79,13 @@ def visualize_sub_bundles(
     fsub_color = np.repeat(fsub_color, n_fsub_streamlines, axis=0)
 
     # Make the streamline actor (fsub)
-    fsub_streamlines_actor = actor.line(fsub_streamlines, fsub_color, linewidth=3)
+    fsub_streamlines_actor = actor.line(
+        fsub_streamlines, fsub_color, linewidth=fsub_linewidth
+    )
 
     # Load in ROI(s)
     roi1_data, affine, img = load_nifti(roi1, return_img=True)
     roi1_mask = roi1_data > 0
-    roi_opacity = 0.7
     roi1_actor = actor.contour_from_roi(roi1_mask, affine, roi1_color, roi_opacity)
 
     # Add actors to scene
@@ -94,7 +97,6 @@ def visualize_sub_bundles(
     if roi2 is not None:
         roi2_data, affine, img = load_nifti(roi2, return_img=True)
         roi2_mask = roi2_data > 0
-        roi_opacity = 0.7
         roi2_actor = actor.contour_from_roi(roi2_mask, affine, roi2_color, roi_opacity)
         figure.add(roi2_actor)
 

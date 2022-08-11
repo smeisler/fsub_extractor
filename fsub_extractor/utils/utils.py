@@ -145,45 +145,49 @@ def anat_to_gmwmi(anat, outpath_base, overwrite):
     # Run 5ttgen to generate 5tt image
     print("\n Generating 5TT Image \n")
     fivettgen = find_program("5ttgen")
-    cmd_5ttgen = [fivettgen, fivett_algo, anat, outpath_base + "5tt.nii.gz", "-nocrop"]
+    fivettgen_out = outpath_base + "5tt.nii.gz"
+    cmd_5ttgen = [fivettgen, fivett_algo, anat, fivettgen_out, "-nocrop"]
     if overwrite:
         cmd_5ttgen += ["-force"]
     else:
-        overwrite_check(outpath_base + "5tt.nii.gz")
+        overwrite_check(fivettgen_out)
     run_command(cmd_5ttgen)
 
     # Run 5tt2gmwmi to generate GMWMI image
     print("\n Generating GMWMI Image \n")
     fivett2gmwmi = find_program("5tt2gmwmi")
+    fivett2gmwmi_out = outpath_base + "gmwmi.nii.gz"
     cmd_5tt2gmwmi = [
         fivett2gmwmi,
-        outpath_base + "5tt.nii.gz",
-        outpath_base + "gmwmi.nii.gz",
+        fivettgen_out,
+        fivett2gmwmi_out,
     ]
     if overwrite:
         cmd_5tt2gmwmi += ["-force"]
     else:
-        overwrite_check(outpath_base + "gmwmi.nii.gz")
+        overwrite_check(fivett2gmwmi_out)
     run_command(cmd_5tt2gmwmi)
 
+    # Run mrthreshold to binarize the GMWMI
     print("\n Binarizing GMWMI \n")
     mrthreshold = find_program("mrthreshold")
+    mrthreshold_out = outpath_base + "gmwmi_bin.nii.gz"
     cmd_mrthreshold = [
         mrthreshold,
         "-abs",
         "0",
         "-comparison",
         "gt",
-        outpath_base + "gmwmi.nii.gz",
-        outpath_base + "gmwmi_bin.nii.gz",
+        fivett2gmwmi_out,
+        mrthreshold_out,
     ]
     if overwrite:
         cmd_mrthreshold += ["-force"]
     else:
-        overwrite_check(outpath_base + "gmwmi_bin.nii.gz")
+        overwrite_check(mrthreshold_out)
     run_command(cmd_mrthreshold)
 
-    return outpath_base + "gmwmi_bin.nii.gz"
+    return mrthreshold_out
 
 
 def project_roi(
@@ -212,7 +216,7 @@ def project_roi(
     Outputs
     =======
     Function returns path to the projected ROI.
-    Image is saved out to outpath_base + gmwmi_roi_intersect.nii.gz
+    Image is saved out to outpath_base + gmwmi_intersected.nii.gz
     """
 
     os.environ["SUBJECTS_DIR"] = fs_dir
@@ -243,8 +247,8 @@ def project_roi(
     if roi_surf[-6:] == ".label":
         print("Projecting FS .label file")
         # out_path = roi_surf.replace(".label",".projected.nii.gz")
-        out_path = outpath_base + op.basename(roi_surf).replace(
-            ".label", ".projected.nii.gz"
+        filename = roi_surf.replace(".label", ".projected.nii.gz").replace(
+            outpath_base, ""
         )
         mri_label2vol = find_program("mri_label2vol")
         cmd_mri_label2vol = [
@@ -252,7 +256,7 @@ def project_roi(
             "--label",
             roi_surf,
             "--o",
-            out_path,
+            outpath_base + filename,
             "--subject",
             subject,
             "--hemi",
@@ -270,8 +274,8 @@ def project_roi(
     if roi_surf[-4:] == ".mgz":
         print("Projecting FS .mgz surface file")
         # out_path = roi_surf.replace(".mgz",".projected.nii.gz")
-        out_path = outpath_base + op.basename(roi_surf).replace(
-            ".mgz", ".projected.nii.gz"
+        filename = roi_surf.replace(".mgz", ".projected.nii.gz").replace(
+            outpath_base, ""
         )
         mri_surf2vol = find_program("mri_surf2vol")
         cmd_mri_surf2vol = [
@@ -279,7 +283,7 @@ def project_roi(
             "--surfval",
             roi_surf,
             "--o",
-            out_path,
+            outpath_base + filename,
             "--subject",
             subject,
             "--hemi",
@@ -295,7 +299,7 @@ def project_roi(
         ]
         run_command(cmd_mri_surf2vol)
 
-        return out_path
+        return outpath_base + filename
 
 
 def intersect_gmwmi(
@@ -317,26 +321,27 @@ def intersect_gmwmi(
     Outputs
     =======
     Function returns path to the intersected image.
-    Image is saved out to outpath_base + gmwmi_roi_intersect.nii.gz
+    Image is saved out to outpath_base + _gmwmi_intersected.nii.gz
     """
 
     mrcalc = find_program("mrcalc")
+    mrcalc_out = outpath_base + "_gmwmi_intersected.nii.gz"
     cmd_mrcalc = [
         mrcalc,
         gmwmi,
         roi_in,
         "-mult",
-        outpath_base + "gmwmi_roi_intersect.nii.gz",
+        mrcalc_out,
     ]
 
     if overwrite == False:
-        overwrite_check(outpath_base + "gmwmi_roi_intersect.nii.gz")
+        overwrite_check(mrcalc_out)
     else:
         cmd_mrcalc += ["-force"]
 
     run_command(cmd_mrcalc)
 
-    return outpath_base + "gmwmi_roi_intersect.nii.gz"
+    return mrcalc_out
 
 
 def merge_rois(roi1, roi2, out_file, overwrite):  # TODO: REFACTOR THIS
@@ -361,21 +366,25 @@ def merge_rois(roi1, roi2, out_file, overwrite):  # TODO: REFACTOR THIS
 
     """
 
-    labelled_roi2 = roi2.removesuffix(".nii.gz") + "_labelled.nii.gz"
+    roi2_mult2 = roi2.removesuffix(".nii.gz") + "_mult-2.nii.gz"
+
+    mrcalc = find_program("mrcalc")
+
+    # Multiply second ROI by 2
+    cmd_mrcalc_mult = [mrcalc, roi2, "2", "-mult", roi2_mult2]
+
+    # Merge ROIs
+    cmd_mrcalc_merge = [mrcalc, roi1, roi2_mult2, "-add", out_file]
 
     # Abort if file already exists and overwriting not allowed
     if overwrite == False:
         overwrite_check(labelled_roi2)
         overwrite_check(out_file)
+    else:
+        cmd_mrcalc_mult += ["-force"]
+        cmd_mrcalc_merge += ["-force"]
 
-    mrcalc = find_program("mrcalc")
-
-    # Multiply second ROI by 2
-    cmd_mrcalc_mult = [mrcalc, roi2, "2", "-mult", labelled_roi2]
     run_command(cmd_mrcalc_mult)
-
-    # Merge ROIs
-    cmd_mrcalc_merge = [mrcalc, roi1, labelled_roi2, "-add", out_file]
     run_command(cmd_mrcalc_merge)
 
     return out_file
@@ -412,21 +421,28 @@ def extract_tck_mrtrix(
 
     ### tck2connectome
     tck2connectome = find_program("tck2connectome")
+    tck2connectome_connectome_out = outpath_base + "connectome.txt"
+    tck2connectome_assignments_out = outpath_base + "assignments.txt"
     cmd_tck2connectome = [
         tck2connectome,
         tck_file,
         rois_in,
-        outpath_base + "connectome.txt",
+        tck2connectome_connectome_out,
         "-assignment_forward_search",
         search_dist,
         "-out_assignments",
-        outpath_base + "assignments.txt",
-        "-force",
+        tck2connectome_assignments_out,
     ]
+    if overwrite == False:
+        overwrite_check(tck2connectome_assignments_out)
+        overwrite_check(tck2connectome_connectome_out)
+    else:
+        cmd_tck2connectome += ["-force"]
     run_command(cmd_tck2connectome)
 
     ### connectome2tck
     connectome2tck = find_program("connectome2tck")
+    connectome2tck_out = outpath_base + "extracted.tck"
     # Change connectome2tck arguments based on single node or pairwise nodes
     if two_rois:
         nodes = "1,2"
@@ -435,15 +451,18 @@ def extract_tck_mrtrix(
     cmd_connectome2tck = [
         connectome2tck,
         tck_file,
-        outpath_base + "assignments.txt",
-        outpath_base + "extracted",
+        tck2connectome_assignments_out,
+        connectome2tck_out,
         "-nodes",
         nodes,
         "-exclusive",
         "-files",
         "single",
-        "-force",
     ]
+    if overwrite == False:
+        overwrite_check(connectome2tck_out)
+    else:
+        cmd_connectome2tck += ["-force"]
     run_command(cmd_connectome2tck)
 
-    return outpath_base + "extracted.tck"
+    return connectome2tck_out

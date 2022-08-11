@@ -158,8 +158,22 @@ def get_parser():
         "--roi2-color",
         "--roi2_color",
         help="Comma-delimited (no spaces) color spec for ROI2 in visualization, as fractional R,G,B. Default is 0.2,1,1.",
-        default="0.2,1,1",
+        default="1,0.2,1",
         metavar=("R,G,B"),
+    )
+    parser.add_argument(
+        "--roi-opacity",
+        "--roi_opacity",
+        help="Opacity for ROI(s) in visualization (float). Default is 0.7.",
+        default=0.7,
+        type=float,
+    )
+    parser.add_argument(
+        "--fsub-linewidth",
+        "--fsub_linewidth",
+        help="Linewidth for extracted steamlines in visualization (float). Default is 3.0.",
+        default=3.0,
+        type=float,
     )
     parser.add_argument(
         "--img-viz",
@@ -222,6 +236,8 @@ def main():
         fsub_color=args.fsub_color,
         roi1_color=args.roi1_color,
         roi2_color=args.roi2_color,
+        roi_opacity=args.roi_opacity,
+        fsub_linewidth=args.fsub_linewidth,
         img_viz=args.img_viz,
         axial_offset=args.axial_offset,
         saggital_offset=args.saggital_offset,
@@ -254,6 +270,8 @@ def extractor(
     fsub_color,
     roi1_color,
     roi2_color,
+    roi_opacity,
+    fsub_linewidth,
     img_viz,
     axial_offset,
     saggital_offset,
@@ -370,6 +388,7 @@ def extractor(
     if len(out_prefix) > 0:
         if out_prefix[-1] != "_":
             out_prefix += "_"
+
     # Make output and scratch folders if they do not exist, and define the naming convention
     if op.isdir(op.join(out_dir, subject)) == False:
         os.mkdir(op.join(out_dir, subject))
@@ -400,7 +419,7 @@ def extractor(
             subject=subject,
             hemi=hemi_list[0],
             projfrac_params=projfrac_params_list,
-            outpath_base=op.join(out_dir,op.basename(roi1)),
+            outpath_base=outpath_base,
             overwrite=overwrite,
         )
     else:
@@ -411,12 +430,14 @@ def extractor(
         roi1_intersected = intersect_gmwmi(
             roi_in=roi1_projected,
             gmwmi=gmwmi,
-            outpath_base=op.join(out_dir,op.basename(roi1).replace(".nii.gz","_")),
-            overwrite=overwrite
+            outpath_base=op.join(
+                out_dir, subject, op.basename(roi1_projected).removesuffix(".nii.gz")
+            ),
+            overwrite=overwrite,
         )
     else:
         roi1_intersected = roi1_projected
-    
+
     ### Process ROI2 the same way if specified ###
     if two_rois == False:
         rois_in = roi1_intersected
@@ -425,37 +446,39 @@ def extractor(
     else:
         if skip_roi_projection == False:
             print("\n Projecting ROI2 \n")
-            roi1_projected = project_roi(
+            roi2_projected = project_roi(
                 roi_in=roi2,
                 fs_dir=fs_dir,
                 subject=subject,
                 hemi=hemi_list[-1],
                 projfrac_params=projfrac_params_list,
-                outpath_base=op.join(out_dir,op.basename(roi2)),
+                outpath_base=outpath_base,
                 overwrite=overwrite,
             )
         else:
             roi2_projected = roi2
         if skip_gmwmi_intersection == False:
             print("\n Intersecting ROI2 with GMWMI \n")
-            roi1_intersected = intersect_gmwmi(
+            roi2_intersected = intersect_gmwmi(
                 roi_in=roi2_projected,
                 gmwmi=gmwmi,
-                outpath_base=outpath_base,
-                overwrite=overwrite
+                outpath_base=op.join(
+                    out_dir,
+                    subject,
+                    op.basename(roi2_projected).removesuffix(".nii.gz"),
+                ),
+                overwrite=overwrite,
             )
         else:
             roi2_intersected = roi2_projected
 
         ### Merge ROIS ###
         print("\n Merging ROIs \n")
-        roi1_basename = op.basename(roi1_intersected).removesuffix(".nii.gz")
-        roi2_basename = op.basename(roi2_intersected).removesuffix(".nii.gz")
         rois_in = merge_rois(
-            roi1,
-            roi2,
-            outpath_base + roi1_basename + "_" + roi2_basename + "_merged.nii.gz",
-            overwrite,
+            roi1=roi1_intersected,
+            roi2=roi2_intersected,
+            out_file=outpath_base + "rois_merged.nii.gz",
+            overwrite=overwrite,
         )
 
     ### Convert .trk to .tck if needed ###
@@ -490,27 +513,57 @@ def extractor(
             ref_anat = img_viz
             show_anat = True
 
-        # Make a picture for each hemisphere passed in
+        # Make a picture for each hemisphere passed in, if saggital view
         if hemi == None:
             hemi_list = ["lh"]
-        for hemi_to_viz in hemi_list:
+        else:
+            hemi_list = hemi.split(
+                ","
+            )  # TODO: redundant to define twice, already defined above if not skip projection
+
+        if camera_angle == "saggital":
+            for hemi_to_viz in hemi_list:
+                visualize_sub_bundles(
+                    orig_bundle=tract,
+                    fsub_bundle=extracted_tck,
+                    ref_anat=ref_anat,
+                    outpath_base=outpath_base + hemi_to_viz + "_",
+                    roi1=roi1_intersected,
+                    roi2=roi2_intersected,
+                    orig_color=orig_color_list,
+                    fsub_color=fsub_color_list,
+                    roi1_color=roi1_color_list,
+                    roi2_color=roi2_color_list,
+                    roi_opacity=roi_opacity,
+                    fsub_linewidth=fsub_linewidth,
+                    interactive=interactive_viz,
+                    show_anat=show_anat,
+                    axial_offset=axial_offset,
+                    saggital_offset=saggital_offset,
+                    camera_angle=camera_angle,
+                    hemi=hemi_to_viz,
+                )
+        else:
             visualize_sub_bundles(
                 orig_bundle=tract,
                 fsub_bundle=extracted_tck,
                 ref_anat=ref_anat,
-                outpath_base=outpath_base,
-                roi1=roi1_projected,
-                roi2=roi2_projected,
+                outpath_base=outpath_base + camera_angle + "_",
+                roi1=roi1_intersected,
+                roi2=roi2_intersected,
                 orig_color=orig_color_list,
                 fsub_color=fsub_color_list,
                 roi1_color=roi1_color_list,
                 roi2_color=roi2_color_list,
+                roi_opacity=roi_opacity,
+                fsub_linewidth=fsub_linewidth,
                 interactive=interactive_viz,
                 show_anat=show_anat,
                 axial_offset=axial_offset,
                 saggital_offset=saggital_offset,
                 camera_angle=camera_angle,
-                hemi=hemi_to_viz,
             )
 
     ### [TODO: Add scalar map stats] ###
+
+    print("\n DONE \n")
