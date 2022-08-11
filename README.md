@@ -13,7 +13,7 @@ foo@bar:~$ rm -r fsub-extractor
 
 If you are a developer, and if there is any update in the source code locally, you may update the installation with:
 ```
-# Supporse you're in root directory of fsub-extractor source code:
+# Suppose you're in root directory of fsub-extractor source code:
 foo@bar:~$ pip install -e .    # for developer to update
 ```
 
