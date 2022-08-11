@@ -26,7 +26,7 @@ Dependencies include:
 * DIPY = 1.5.0
 * Fury = 0.8.0
 * Dask = 2022.8.0
-* FreeSurfer >= 7.2.0 (it might work with versions lower, but this code was not tested on previous versions).
+* FreeSurfer >= 7.2.0 (it might work with lower versions, but this code was not tested on previous versions).
 
 If you are using this software, you should be at the point in your analysis where you have:
 * Preprocessed DWI, with tract-files of interest.
