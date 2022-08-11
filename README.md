@@ -1,5 +1,7 @@
 # _fsub-extractor_
-This is an application for extracing **F**unctional **Su**bcomponents of **B**undles.
+This is an application for extracing **F**unctional **Su**bcomponents of **B**undles. This software can take gray matter regions, project them into white matter, intersect them with the gray-matter-white-matter-interface (GMWMI), and find streamlines that connect to these intersected region. It will also produce a visualization of the streamlines, and can sample scalar values along the extracted streamlines (tract profile or average across all streamlines).
+
+This softwware was conceived of and developed during NeuroHackademy 2022.
 
 ## Install from GitHub
 ```
@@ -16,6 +18,132 @@ If you are a developer, and if there is any update in the source code locally, y
 # Suppose you're in root directory of fsub-extractor source code:
 foo@bar:~$ pip install -e .    # for developer to update
 ```
+
+## Dependencies and Prerequisites
+Dependencies include:
+* Python >= 3.9.0
+* MRTrix = 3.0.3
+* DIPY = 1.5.0
+* Fury = 0.8.0
+* Dask = 2022.8.0
+* FreeSurfer >= 7.2.0 (it might work with versions lower, but this code was not tested on previous versions).
+
+If you are using this software, you should be at the point in your analysis where you have:
+* Preprocessed DWI, with tract-files of interest.
+    * .trk or .tck; could be whole-brain or segmented bundles.
+    * You might also have scalar maps (e.g., FA, MD, NODDI metrics) that you want to sample streamlines on.
+* Preprocessed fMRI, with BINARY masks of ROIs.
+    * Can be defined in volumetric space (.nii.gz) or surface space (.mgz or .label).
+    * These might be derived from thresholded stat maps from a GLM analaysis, for example.
+* FreeSurfer `recon-all` outputs on the subject's anatomical image.
+    * This is needed to create the GMWMI and project ROIs perpendicular to the white matter.
+* All files (anatomical, DWI/streamlines, fROIs) **must be in the same space** (voxel sizes do not need to be equal).
+    
+## Usage
+This function has three main use cases:
+1. Deriving *all* streamlines that connect to an ROI.
+    * Best-suited for looking at segmented bundles as opposed to whole-brain tractograms.
+2. Deriving streamlines that connect a pair of ROIs.
+    * Whole-brain or segmented bundles can work, depending on the ROI locations.
+3. *(Coming soon)* Running tractography between a pair of ROIs.
+    * Best for when you do not have a tractogram, or the tractogram connections between the area are sparse.
+```
+extractor -h
+usage: extractor [-h] --subject SUBJECT --tract TRACT --roi1 ROI1 [--fs-dir FS_DIR] [--hemi HEMI]
+                 [--trk-ref TRK_REF] [--gmwmi GMWMI] [--roi2 ROI2] [--scalars SCALARS] [--search-dist SEARCH_DIST]
+                 [--projfrac-params START,STOP,DELTA] [--out-dir OUT_DIR] [--out-prefix OUT_PREFIX]
+                 [--scratch SCRATCH] [--overwrite | --no-overwrite]
+                 [--skip-roi-projection | --no-skip-roi-projection | --skip_roi_projection | --no-skip_roi_projection]
+                 [--skip-gmwmi-intersection | --no-skip-gmwmi-intersection | --skip_gmwmi_intersection | --no-skip_gmwmi_intersection]
+                 [--skip-viz | --no-skip-viz | --skip-viz | --no-skip-viz]
+                 [--interactive-viz | --no-interactive-viz | --interactive_viz | --no-interactive_viz]
+                 [--orig-color R,G,B] [--fsub-color R,G,B] [--roi1-color R,G,B] [--roi2-color R,G,B]
+                 [--roi-opacity ROI_OPACITY] [--fsub-linewidth FSUB_LINEWIDTH] [--img-viz IMG_VIZ]
+                 [--axial-offset AXIAL_OFFSET] [--saggital-offset SAGGITAL_OFFSET] [--camera-angle CAMERA_ANGLE]
+
+Functionally segments a tract file based on intersections with prespecified ROI(s) in gray matter.
+
+options:
+  -h, --help            show this help message and exit
+  --subject SUBJECT     Subject name. Unless --skip-roi-proj is specified, this must match the name in the
+                        FreeSurfer folder.
+  --tract TRACT         Path to tract file (.tck or .trk). Should be in the same space as FreeSurfer and scalar
+                        map inputs.
+  --roi1 ROI1           First ROI file (.mgz, .label, or .nii.gz). File should be binary (1 in ROI, 0 elsewhere).
+  --fs-dir FS_DIR, --fs_dir FS_DIR
+                        Path to FreeSurfer directory for the subject. Required unless --skip-roi-proj is
+                        specified.
+  --hemi HEMI           FreeSurfer hemisphere name(s) corresponding to locations of the ROIs, separated by a comma
+                        (no spaces) if different for two ROIs (e.g 'lh,rh'). Required unless --skip-roi-proj is
+                        specified.
+  --trk-ref TRK_REF, --trk_ref TRK_REF
+                        Path to reference file, if passing in a .trk file. Typically a nifti-related object from
+                        the native diffusion used for streamlines generation
+  --gmwmi GMWMI         Path to GMWMI image (.nii.gz or .mif). If not specified or not found, it will be created
+                        from FreeSurfer inputs. Image must be a binary mask. Ignored if --skip-gmwmi-intersection
+                        is specified.
+  --roi2 ROI2           Second ROI file (.mgz, .label, or .nii.gz). If specified, program will find streamlines
+                        connecting ROI1 and ROI2. File should be binary (1 in ROI, 0 elsewhere).
+  --scalars SCALARS     Comma delimited list (no spaces) of scalar map(s) to sample streamlines on (.nii.gz).
+                        Should be in the same space as .tck and FreeSurfer inputs.
+  --search-dist SEARCH_DIST, --search_dist SEARCH_DIST
+                        Distance in mm to search ahead of streamlines for ROIs (float). Default is 4.0 mm.
+  --projfrac-params START,STOP,DELTA, --projfrac_params START,STOP,DELTA
+                        Comma delimited list (no spaces) of projfrac parameters for mri_surf2vol / mri_label2vol.
+                        Provided as start,stop,delta. Default is --projfrac-params='-2,0,0.05'. Start must be
+                        negative to project into white matter.
+  --out-dir OUT_DIR, --out_dir OUT_DIR
+                        Directory where outputs will be stored (a subject-folder will be created there if it does
+                        not exist).
+  --out-prefix OUT_PREFIX, --out_prefix OUT_PREFIX
+                        Prefix for all output files. Default is no prefix.
+  --scratch SCRATCH, --scratch SCRATCH
+                        Path to scratch directory. Default is current directory.
+  --overwrite, --no-overwrite
+                        Whether to overwrite outputs. Default is to overwrite. (default: True)
+  --skip-roi-projection, --no-skip-roi-projection, --skip_roi_projection, --no-skip_roi_projection
+                        Whether to skip projecting ROI into WM (not recommended unless ROI is already projected).
+                        Default is to not skip projection. (default: False)
+  --skip-gmwmi-intersection, --no-skip-gmwmi-intersection, --skip_gmwmi_intersection, --no-skip_gmwmi_intersection
+                        Whether to skip intersecting ROI with GMWMI (not recommended unless ROI is already
+                        intersected). Default is to not skip intersection. (default: False)
+  --skip-viz, --no-skip-viz, --skip-viz, --no-skip-viz
+                        Whether to skip the output figure. Default is to produce the figure. (default: False)
+  --interactive-viz, --no-interactive-viz, --interactive_viz, --no-interactive_viz
+                        Whether to produce an interactive visualization. Default is not interactive. (default:
+                        False)
+  --orig-color R,G,B, --orig_color R,G,B
+                        Comma-delimited (no spaces) color spec for original bundle in visualization, as fractional
+                        R,G,B. Default is 0.8,0.8,0.
+  --fsub-color R,G,B, --fsub_color R,G,B
+                        Comma-delimited (no spaces) color spec for FSuB bundle in visualization, as fractional
+                        R,G,B. Default is 0.2,0.6,1.
+  --roi1-color R,G,B, --roi1_color R,G,B
+                        Comma-delimited (no spaces) color spec for ROI1 in visualization, as fractional R,G,B.
+                        Default is 0.2,1,1.
+  --roi2-color R,G,B, --roi2_color R,G,B
+                        Comma-delimited (no spaces) color spec for ROI2 in visualization, as fractional R,G,B.
+                        Default is 0.2,1,1.
+  --roi-opacity ROI_OPACITY, --roi_opacity ROI_OPACITY
+                        Opacity for ROI(s) in visualization (float). Default is 0.7.
+  --fsub-linewidth FSUB_LINEWIDTH, --fsub_linewidth FSUB_LINEWIDTH
+                        Linewidth for extracted steamlines in visualization (float). Default is 3.0.
+  --img-viz IMG_VIZ, --img-viz IMG_VIZ
+                        Path to image to plot in visualization (.nii.gz). Must be in same space as DWI/anatomical
+                        inputs.
+  --axial-offset AXIAL_OFFSET, --axial_offset AXIAL_OFFSET
+                        Float (-1,1) describing where to display axial slice. -1 is bottom, 1 is top. Default is
+                        0.0.
+  --saggital-offset SAGGITAL_OFFSET, --saggital_offset SAGGITAL_OFFSET
+                        Float (-1,1) describing where to display saggital slice. -1 is left, 1 is right. Default
+                        is 0.0.
+  --camera-angle CAMERA_ANGLE, --camera_angle CAMERA_ANGLE
+                        Camera angle for visualization. Choices are either 'saggital' or 'axial'. Default is
+                        'saggital.'
+ ```
+ 
+## Questions? Want to contribute?
+We welcome any questions, feedback, or collaboration! We ask that you start by opening an issue in this repository to discuss.
 
 ## License information
 ([more information on the MIT license](https://en.wikipedia.org/wiki/MIT_License))
