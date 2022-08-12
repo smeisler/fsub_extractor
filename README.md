@@ -24,6 +24,7 @@ Dependencies include:
 * Python >= 3.9.0
 * MRTrix = 3.0.3
 * DIPY = 1.5.0
+* vtk >= 9.1.0
 * Fury = 0.8.0
 * Dask = 2022.8.0
 * FreeSurfer >= 7.2.0 (it might work with lower versions, but this code was not tested on previous versions).
