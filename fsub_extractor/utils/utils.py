@@ -247,9 +247,8 @@ def project_roi(
     if roi_surf[-6:] == ".label":
         print("Projecting FS .label file")
         # out_path = roi_surf.replace(".label",".projected.nii.gz")
-        filename = roi_surf.replace(".label", ".projected.nii.gz").replace(
-            outpath_base, ""
-        )
+        filename = roi_surf.replace(".label", ".projected.nii.gz")
+        filename = op.basename(filename)
         mri_label2vol = find_program("mri_label2vol")
         cmd_mri_label2vol = [
             mri_label2vol,
@@ -274,9 +273,8 @@ def project_roi(
     if roi_surf[-4:] == ".mgz":
         print("Projecting FS .mgz surface file")
         # out_path = roi_surf.replace(".mgz",".projected.nii.gz")
-        filename = roi_surf.replace(".mgz", ".projected.nii.gz").replace(
-            outpath_base, ""
-        )
+        filename = roi_surf.replace(".mgz", ".projected.nii.gz")
+        filename = op.basename(filename)
         mri_surf2vol = find_program("mri_surf2vol")
         cmd_mri_surf2vol = [
             mri_surf2vol,
