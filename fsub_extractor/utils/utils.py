@@ -170,30 +170,35 @@ def anat_to_gmwmi(anat, outpath_base, overwrite):
 
     # Run mrthreshold to binarize the GMWMI
     print("\n Binarizing GMWMI \n")
+    binarized_gmwmi_outpath = outpath_base + "gmwmi_bin.nii.gz"
+    binarized_gmwmi_out = binarize_image(fivett2gmwmi_out, binarized_gmwmi_out, overwrite)
+
+    return binarized_gmwmi_out
+
+def binarize_image(img, outfile, overwrite):
     mrthreshold = find_program("mrthreshold")
-    mrthreshold_out = outpath_base + "gmwmi_bin.nii.gz"
     cmd_mrthreshold = [
-        mrthreshold,
-        "-abs",
-        "0",
-        "-comparison",
-        "gt",
-        fivett2gmwmi_out,
-        mrthreshold_out,
+    mrthreshold,
+    "-abs",
+    "0",
+    "-comparison",
+    "gt",
+    img,
+    outfile,
     ]
+    
     if overwrite:
         cmd_mrthreshold += ["-force"]
     else:
-        overwrite_check(mrthreshold_out)
+        overwrite_check(outfile)
+        
     run_command(cmd_mrthreshold)
-
-    return mrthreshold_out
-
+    
+    return outfile
 
 def project_roi(
     roi_in, fs_dir, subject, hemi, projfrac_params, outpath_base, overwrite
 ):
-    # TODO: make projfrac parameters an input argument
     """Projects input ROI into the white matter. If volumetric ROI is input, starts by mapping it to the surface.
 
     Parameters

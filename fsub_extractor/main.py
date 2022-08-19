@@ -13,7 +13,6 @@ def get_parser():
     parser.add_argument(
         "--subject",
         help="Subject name. Unless --skip-roi-proj is specified, this must match the name in the FreeSurfer folder.",
-        type=str,
         required=True,
     )
     parser.add_argument(
@@ -31,7 +30,7 @@ def get_parser():
     parser.add_argument(
         "--fs-dir",
         "--fs_dir",
-        help="Path to FreeSurfer directory for the subject. Required unless --skip-roi-proj is specified.",
+        help="Path to FreeSurfer subjects directory. Required unless --skip-roi-proj is specified.",
         type=op.abspath,
     )
     parser.add_argument(
@@ -47,7 +46,7 @@ def get_parser():
     parser.add_argument(
         "--trk-ref",
         "--trk_ref",
-        help="Path to reference file, if passing in a .trk file. Typically a nifti-related object from the native diffusion used for streamlines generation",
+        help="Path to reference file, if passing in a .trk file. Typically a nifti-related object from the native diffusion used for streamlines generation.",
         type=op.abspath,
     )
     parser.add_argument(
@@ -157,7 +156,7 @@ def get_parser():
     parser.add_argument(
         "--roi2-color",
         "--roi2_color",
-        help="Comma-delimited (no spaces) color spec for ROI2 in visualization, as fractional R,G,B. Default is 0.2,1,1.",
+        help="Comma-delimited (no spaces) color spec for ROI2 in visualization, as fractional R,G,B. Default is 1,0.2,1.",
         default="1,0.2,1",
         metavar=("R,G,B"),
     )
@@ -184,16 +183,16 @@ def get_parser():
     parser.add_argument(
         "--axial-offset",
         "--axial_offset",
-        help="Float (-1,1) describing where to display axial slice. -1 is bottom, 1 is top. Default is 0.0.",
+        help="Float (-1,1) describing where to display axial slice. -1.0 is completely bottom, 1.0 is completely top. Default is 0.0.",
         type=float,
-        default=0.0,  # TODO: get floats to work
+        default=0.0,
     )
     parser.add_argument(
         "--saggital-offset",
         "--saggital_offset",
-        help="Float (-1,1) describing where to display saggital slice. -1 is left, 1 is right. Default is 0.0.",
+        help="Float (-1,1) describing where to display saggital slice. -1.0 is completely left, 1.0 is completely right. Default is 0.0.",
         type=float,
-        default=0.0,  # TODO: get floats to work
+        default=0.0,
     )
     parser.add_argument(
         "--camera-angle",
