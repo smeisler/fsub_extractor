@@ -183,17 +183,17 @@ SOFTWARE.
         </a>
     </td>
     <td align="center">
-        <a href="https://github.com/zhao-cy">
-            <img src="https://avatars.githubusercontent.com/u/20084724?v=4" width="100;" alt="zhao-cy"/>
-            <br />
-            <sub><b>Chenying Zhao</b></sub>
-        </a>
-    </td>
-    <td align="center">
         <a href="https://github.com/emilykubota">
             <img src="https://avatars.githubusercontent.com/u/19805108?v=4" width="100;" alt="emilykubota"/>
             <br />
             <sub><b>Emily Kubota</b></sub>
+        </a>
+    </td>
+    <td align="center">
+        <a href="https://github.com/zhao-cy">
+            <img src="https://avatars.githubusercontent.com/u/20084724?v=4" width="100;" alt="zhao-cy"/>
+            <br />
+            <sub><b>Chenying Zhao</b></sub>
         </a>
     </td>
     <td align="center">
