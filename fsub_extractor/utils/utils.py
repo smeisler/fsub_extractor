@@ -267,8 +267,12 @@ def project_roi(
             projfrac_params[0],
             projfrac_params[1],
             projfrac_params[2],
+            "--identity"
+
         ]
         run_command(cmd_mri_label2vol)
+        
+        return outpath_base + filename
 
     if roi_surf[-4:] == ".mgz":
         print("Projecting FS .mgz surface file")
