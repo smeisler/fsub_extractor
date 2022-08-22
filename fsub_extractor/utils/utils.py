@@ -106,7 +106,7 @@ def trk_to_tck(trk_file, ref, out_dir, overwrite):
     return tck_file
 
 
-def anat_to_gmwmi(anat, outpath_base, overwrite):
+def anat_to_gmwmi(anat, subject_base, overwrite):
     """Creates a gray-matter-white-matter-interface (GMWMI) from a T1 or FreeSurfer image
     If a T1 image is passed (not recommended), uses FSL FAST to create 5TT and GMWMI
     If a FreeSurfer directory is passed in, uses the surface reconstruction to create 5TT and GMWMI
@@ -115,17 +115,17 @@ def anat_to_gmwmi(anat, outpath_base, overwrite):
     ==========
     anat: str
             Either a path to a T1 image (.nii, .nii.gz, .mif) or FreeSurfer subject directory
-    outpath_base: str
-            Path to output directory, including output prefix
+    subject_base: str
+            Path to subject directory
     overwrite: bool
             Whether to allow overwriting outputs
 
     Outputs
     =======
     Function returns path to binarized GMWMI output image.
-    outpath_base + 5tt.nii.gz is the 5TT segmented anatomical image
-    outpath_base + gmwmi.nii.gz is the GMWMI image
-    outpath_base + gmwmi_bin.nii.gz is the binarized GMWMI image
+    subject_base + 5tt.nii.gz is the 5TT segmented anatomical image
+    subject_base + gmwmi.nii.gz is the GMWMI image
+    subject_base + gmwmi_bin.nii.gz is the binarized GMWMI image
     """
 
     # Check for T1 file vs FreeSurfer directory
@@ -145,7 +145,7 @@ def anat_to_gmwmi(anat, outpath_base, overwrite):
     # Run 5ttgen to generate 5tt image
     print("\n Generating 5TT Image \n")
     fivettgen = find_program("5ttgen")
-    fivettgen_out = outpath_base + "5tt.nii.gz"
+    fivettgen_out = op.join(subject_base,"5tt.nii.gz")
     cmd_5ttgen = [fivettgen, fivett_algo, anat, fivettgen_out, "-nocrop"]
     if overwrite:
         cmd_5ttgen += ["-force"]
@@ -156,7 +156,7 @@ def anat_to_gmwmi(anat, outpath_base, overwrite):
     # Run 5tt2gmwmi to generate GMWMI image
     print("\n Generating GMWMI Image \n")
     fivett2gmwmi = find_program("5tt2gmwmi")
-    fivett2gmwmi_out = outpath_base + "gmwmi.nii.gz"
+    fivett2gmwmi_out = op.join(subject_base ,"gmwmi.nii.gz")
     cmd_5tt2gmwmi = [
         fivett2gmwmi,
         fivettgen_out,
@@ -171,7 +171,7 @@ def anat_to_gmwmi(anat, outpath_base, overwrite):
     # Run mrthreshold to binarize the GMWMI
     print("\n Binarizing GMWMI \n")
     mrthreshold = find_program("mrthreshold")
-    mrthreshold_out = outpath_base + "gmwmi_bin.nii.gz"
+    mrthreshold_out = op.join(subject_base, "gmwmi_bin.nii.gz")
     cmd_mrthreshold = [
         mrthreshold,
         "-abs",

@@ -394,7 +394,8 @@ def extractor(
         os.mkdir(op.join(out_dir, subject))
     if op.isdir(op.join(scratch, subject + "_scratch")) == False:
         os.mkdir(op.join(scratch, subject + "_scratch"))
-    outpath_base = op.join(out_dir, subject, out_prefix)
+    subject_base = op.join(out_dir,subject)
+    outpath_base = op.join(subject_base, out_prefix)
     scratch_base = op.join(scratch, subject + "_scratch", out_prefix)
 
     # TODO: Parallelize GMWMI creation, roi projection/intersection
@@ -402,7 +403,7 @@ def extractor(
     if skip_gmwmi_intersection == False:
         if gmwmi == None:
             print("\n Creating a GMWMI \n")
-            gmwmi = anat_to_gmwmi(fs_sub_dir, outpath_base, overwrite)
+            gmwmi = anat_to_gmwmi(fs_sub_dir, subject_base, overwrite)
 
     ### Set flag for whether two rois were passed in ###
     if roi2 != None:
