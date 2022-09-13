@@ -72,6 +72,13 @@ def get_parser():
         default=4.0,
     )
     parser.add_argument(
+        "--search-type",
+        "--search_type",
+        help="Method of searching for streamlines (radial, reverse, forward). Default is forward.",
+        type=str,
+        default="forward",
+    )
+    parser.add_argument(
         "--projfrac-params",
         "--projfrac_params",
         help="Comma delimited list (no spaces) of projfrac parameters for mri_surf2vol / mri_label2vol. Provided as start,stop,delta. Default is --projfrac-params='-2,0,0.05'. Start must be negative to project into white matter.",
@@ -223,6 +230,7 @@ def main():
         roi2=args.roi2,
         scalars=args.scalars,
         search_dist=str(args.search_dist),
+        search_type=str(args.search_type),
         projfrac_params=args.projfrac_params,
         out_dir=args.out_dir,
         out_prefix=args.out_prefix,
@@ -257,6 +265,7 @@ def extractor(
     roi2,
     scalars,
     search_dist,
+    search_type,
     projfrac_params,
     out_dir,
     out_prefix,
@@ -492,7 +501,7 @@ def extractor(
     ### Run MRtrix Tract Extraction ###
     print("\n Extracing the sub-bundle \n")
     extracted_tck = extract_tck_mrtrix(
-        tck_file, rois_in, outpath_base, search_dist, two_rois, overwrite
+        tck_file, rois_in, outpath_base, search_dist, search_type, two_rois, overwrite
     )
     print("\n The extracted tract is located at " + extracted_tck + ".\n")
 
