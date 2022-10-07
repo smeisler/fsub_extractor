@@ -393,7 +393,7 @@ def merge_rois(roi1, roi2, out_file, overwrite):  # TODO: REFACTOR THIS
 
 
 def extract_tck_mrtrix(
-    tck_file, rois_in, outpath_base, search_dist, two_rois, overwrite
+    tck_file, rois_in, outpath_base, search_dist, search_type, two_rois, overwrite
 ):
     """Uses MRtrix tools to extract the TCK file that connects to the ROI(s)
     If the ROI image contains one value, finds all streamlines that connect to that region
@@ -409,6 +409,8 @@ def extract_tck_mrtrix(
             Path to output directory, including output prefix
     search_dist: float
             How far to search ahead of streamlines for ROIs, in mm
+    search_type: string 
+            Method of searching for streamlines (forward, reverse, or radial). 
     two_rois: bool
             True if two ROIs in rois_in, False, if one ROI in rois_in
     overwrite: bool
@@ -430,7 +432,7 @@ def extract_tck_mrtrix(
         tck_file,
         rois_in,
         tck2connectome_connectome_out,
-        "-assignment_forward_search",
+        "-assignment_"+search_type+"_search",
         search_dist,
         "-out_assignments",
         tck2connectome_assignments_out,
