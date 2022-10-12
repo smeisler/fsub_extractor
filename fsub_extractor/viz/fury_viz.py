@@ -150,3 +150,162 @@ def visualize_sub_bundles(
     window.record(
         figure, out_path=(outpath_base + "visualization.png"), size=(1200, 900)
     )  # TODO: make better file output name
+
+def define_streamline_actor(
+    tck,
+    reference_anatomy, 
+    color):
+     """Takes in tck reference anatomy files and outputs a fury streamline actor.
+    Parameters
+    ==========
+    tck: streamline to plot (.tck)
+    reference_anatomy: Reference anatomy (.nii.gz)
+    color = color to plot streamlines as ([R,B,G])
+
+    Outputs
+    =======
+    streamlines_actor to be added to a fury scene
+    """
+    
+    # read in reference anatomy 
+    reference_anatomy = nib.load(ref_anatomy)
+    
+    # read in streamlines 
+    streamlines = load_tck(tck, reference_anatomy)
+    streamlines = streamlines.streamlines
+    
+    # get number of streamlines in order to make them the same color
+    n_streamlines = np.shape(streamlines)[0]
+    color = np.array([color])
+    color = np.repeat(color, n_streamlines, axis=0)
+    
+    # make the streamline actor 
+    if n_streamlines > 0: 
+        streamlines_actor = actor.line(streamlines,color, opacity=0.1)
+    else: 
+        streamlines_actor = None
+    return streamlines_actor
+
+
+def define_roi_actor(
+    roi_path, 
+    color, 
+    opacity):
+    """Takes in roi file and outputs a fury roi actor.
+    Parameters
+    ==========
+    roi_path: path to roi file (.nii.gz)
+    color = color to plot roi as ([R,B,G])
+    opacity = how opaque to make the roi ([0-1])
+
+    Outputs
+    =======
+    roi_actor to be added to a fury scene
+    """
+    if exists(roi_path):
+        roi_data, affine, img = load_nifti(roi_path, return_img=True)
+        roi_mask = roi_data > 0
+        roi_actor = actor.contour_from_roi(roi_mask, affine, color, opacity)
+    else:
+        roi_actor = None 
+    return roi_actor
+
+def define_slice_actor(
+    reference_anatomy,
+    view = 'axial',
+    offset = 0):
+    
+    """Takes in reference anatomy file and returns slice actor.
+    Parameters
+    ==========
+    reference_anatomy: path to reference anatomy file (.nii.gz)
+    view: view of the slice, options are 'saggital' or 'axial' (default)
+    offset = how far off center the slice should be plotted ([-1,1]). 0 (center) is default.
+
+    Outputs
+    =======
+    slice_actor to be added to a fury scene
+    """
+
+    # read in reference anatomy 
+    reference_anatomy = nib.load(reference_anatomy)
+    
+    data = reference_anatomy.get_fdata()
+    affine = reference_anatomy.affine
+    
+    # restrict values for visualization
+    mean, std = data[data > 0].mean(), data[data > 0].std()
+    min_val,max_val = data[data > 0].min(), data[data > 0].max()
+    value_range = (min_val, max_val)
+
+    # make slice actor
+    slice_actor = actor.slicer(data, affine, value_range)
+    
+    # calculate where to display the image based on the offset
+    if view == 'axial':
+        offset = (slice_actor.shape[1] - (slice_actor.shape[1] // 2)) * offset
+        slice_actor.display(None, None, slice_actor.shape[1] // 2 + int(offset))
+    if view == 'saggital':
+        offset = (slice_actor.shape[0] - (slice_actor.shape[0] // 2)) * offset
+        slice_actor.display(slice_actor.shape[0] // 2 + int(offset), None, None)
+    
+    return slice_actor
+
+def viz_wrapper(streamline_actor,
+                interactive,
+                slice_actor=None,
+                roi_actor=None,
+                camera_angle='saggital',
+                hemi = 'lh',
+                filename = None):
+     
+    """Takes in streamline actor, optional roi actor and slice actors
+    and ouputs a fury scene. 
+    
+    Parameters
+    ==========
+    streamline_actor: list of fury streamline actors (e.g., [output] of define_streamline_actor)
+    interactive: whether you want an interactive window to pop up
+    camera_angle: angle of the camera (options: 'saggital' or 'axial', default: 'saggital')
+    hemi = hemisphere (default: 'lh')
+    roi_actor: list of fury roi actors (e.g., [output] of define roi_actor)
+    slice_actor: list fury slice actors (e.g., [output] of define_slice_actor)
+    filename: fullpath to save the image (e.g., .png)
+
+    note: for plotting multiple streamlines, rois, or slices the function 
+    will loop over a list of actors and add them to the scene.
+    
+    Outputs
+    =======
+    slice_actor to be added to a fury scene
+    """
+    
+    figure = window.Scene()
+        
+    for t in range(len(streamline_actor)):
+        figure.add(streamline_actor[t])
+        
+    for r in range(len(roi_actor)):
+        figure.add(roi_actor[r])
+        
+    for s in range(len(slice_actor)):
+        figure.add(slice_actor[s])
+
+    
+    cam = figure.GetActiveCamera()
+    cam.SetViewUp(0, 0, 0)
+    
+    if camera_angle == "saggital":
+        if hemi == "lh":
+            cam.Yaw(270)
+            cam.Roll(90)
+        if hemi == "rh":
+            cam.Yaw(90)
+            cam.Roll(270)
+            
+        if interactive:
+            window.show(figure)
+        else:
+            window.record(figure, outpath = filename, size=(1200, 900)) 
+
+
