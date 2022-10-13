@@ -190,13 +190,15 @@ def define_streamline_actor(
 def define_roi_actor(
     roi_path, 
     color, 
-    opacity):
+    opacity=0,
+    roi_val=1):
     """Takes in roi file and outputs a fury roi actor.
     Parameters
     ==========
     roi_path: path to roi file (.nii.gz)
     color = color to plot roi as ([R,B,G])
-    opacity = how opaque to make the roi ([0-1])
+    opacity = how opaque to make the roi ([0-1], default =  0)
+    roi_val = roi value (default = 1)
 
     Outputs
     =======
@@ -204,7 +206,7 @@ def define_roi_actor(
     """
     if exists(roi_path):
         roi_data, affine, img = load_nifti(roi_path, return_img=True)
-        roi_mask = roi_data > 0
+        roi_mask = (roi_data == roi_val)
         roi_actor = actor.contour_from_roi(roi_mask, affine, color, opacity)
     else:
         roi_actor = None 
