@@ -1,6 +1,7 @@
 from dipy.io.streamline import load_tck
 from dipy.io.image import load_nifti
 from fury import actor, window, colormap as cmap
+from os.path import exists
 import nibabel as nib
 import numpy as np
 
@@ -154,8 +155,9 @@ def visualize_sub_bundles(
 def define_streamline_actor(
     tck,
     reference_anatomy, 
-    color):
-     """Takes in tck reference anatomy files and outputs a fury streamline actor.
+    color
+):
+    """Takes in tck reference anatomy files and outputs a fury streamline actor.
     Parameters
     ==========
     tck: streamline to plot (.tck)
@@ -166,10 +168,9 @@ def define_streamline_actor(
     =======
     streamlines_actor to be added to a fury scene
     """
-    
     # read in reference anatomy 
-    reference_anatomy = nib.load(ref_anatomy)
-    
+    reference_anatomy = nib.load(reference_anatomy)
+
     # read in streamlines 
     streamlines = load_tck(tck, reference_anatomy)
     streamlines = streamlines.streamlines
@@ -178,7 +179,7 @@ def define_streamline_actor(
     n_streamlines = np.shape(streamlines)[0]
     color = np.array([color])
     color = np.repeat(color, n_streamlines, axis=0)
-    
+
     # make the streamline actor 
     if n_streamlines > 0: 
         streamlines_actor = actor.line(streamlines,color, opacity=0.1)
@@ -215,7 +216,8 @@ def define_roi_actor(
 def define_slice_actor(
     reference_anatomy,
     view = 'axial',
-    offset = 0):
+    offset = 0
+):
     
     """Takes in reference anatomy file and returns slice actor.
     Parameters
@@ -253,13 +255,15 @@ def define_slice_actor(
     
     return slice_actor
 
-def viz_wrapper(streamline_actor,
-                interactive,
-                slice_actor=None,
-                roi_actor=None,
-                camera_angle='saggital',
-                hemi = 'lh',
-                filename = None):
+def visualize_bundles(
+    streamline_actor,
+    interactive,
+    slice_actor=None,
+    roi_actor=None,
+    camera_angle='saggital',
+    hemi = 'lh',
+    filename = None
+):
      
     """Takes in streamline actor, optional roi actor and slice actors
     and ouputs a fury scene. 
@@ -292,8 +296,7 @@ def viz_wrapper(streamline_actor,
         
     for s in range(len(slice_actor)):
         figure.add(slice_actor[s])
-
-    
+ 
     cam = figure.GetActiveCamera()
     cam.SetViewUp(0, 0, 0)
     
@@ -304,10 +307,10 @@ def viz_wrapper(streamline_actor,
         if hemi == "rh":
             cam.Yaw(90)
             cam.Roll(270)
-            
-        if interactive:
-            window.show(figure)
-        else:
-            window.record(figure, outpath = filename, size=(1200, 900)) 
+    
+    if interactive:
+        window.show(figure)
+    else:
+        window.record(figure, outpath = filename, size=(1200, 900)) 
 
 
