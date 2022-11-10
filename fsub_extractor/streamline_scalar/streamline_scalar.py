@@ -19,8 +19,15 @@ def get_parser():
         required=True,
     )
     parser.add_argument(
-        "--scalars",
-        help="Comma delimited list (no spaces) of path(s) to scalar maps (e.g. FA). This will also be used as a spatial reference file is a .trk file is passed in as a streamlines object.",
+        "--scalars_paths",
+        "--scalar-paths",
+        help="Comma delimited list (no spaces) of path(s) to scalar maps (e.g. /path/to/FA.nii.gz). This will also be used as a spatial reference file is a .trk file is passed in as a streamlines object.",
+        required=True,
+    )
+    parser.add_argument(
+        "--scalar_names",
+        "--scalar-names"
+        help="Comma delimited list (no spaces) of names to scalar maps (e.g. FA). This will also be used as a spatial reference file is a .trk file is passed in as a streamlines object.",
         required=True,
     )
     parser.add_argument(
@@ -39,7 +46,7 @@ def get_parser():
     )
     parser.add_argument(
         "--nb_points",
-        "--nb-points,
+        "--nb-points",
         help="Number of nodes to use in tract profile (default is 100)",
         type=int,
         default=100,
@@ -85,7 +92,8 @@ def main():
         tract=args.tract,
         roi_begin=args.roi_begin,
         roi_end=args.roi_end,
-        scalars=args.scalars,
+        scalar_paths=args.scalar_paths,
+        scalar_names=args.scalar_names,
         nb_points=args.nb_points,
         out_dir=args.out_dir,
         out_prefix=args.out_prefix,
@@ -98,7 +106,8 @@ def streamline_scalar(
     tract,
     roi_begin,
     roi_end,
-    scalars,
+    scalar_paths,
+    scalar_names,
     nb_points,
     out_dir,
     out_prefix,
@@ -109,8 +118,15 @@ def streamline_scalar(
     # TODO: add docs
 
     ### Split string of scalars in to list
-    scalar_list = [op.abspath(scalar) for scalar in scalars.split(",")]
-    for scalar in scalar_list:
+    scalar_path_list = [op.abspath(scalar) for scalar in scalar_paths.split(",")]
+    scalar_name_list = scalar_names.split(",")
+
+    # Make sure number of scalar paths equal number of scalar names
+    if len(scalar_path_list) != len(scalar_name_list):
+        raise Exception("Number of scalar images and scalar names do not match")
+    
+    # Check that scalars exist
+    for scalar in scalar_path_list:
         if op.exists(scalar) == False:
             raise Exception("Scalar map " + scalar + " not found on the system.")
             
@@ -122,13 +138,8 @@ def streamline_scalar(
         raise Exception("Tract file " + tract + " is not of a supported file type.")
     # Use first scalar as reference file for trk streamlines
     if tract[-4:] == ".trk":
-        trk_ref = scalar_list[0]
-        print("\n Using " + trk_ref +" as reference image for TRK file. \n")
-    # Convert .trk to .tck if needed
-        print(" Converting .trk to .tck \n")
-        tck_file = trk_to_tck(tract, trk_ref, out_dir, overwrite)
-    else:
-        tck_file = tract
+        trk_ref = scalar_path_list[0]
+        print("\n Using " + trk_ref + " as reference image for TRK file. \n")
     # Make sure number of points is not negative
     if nb_points < 2:
         raise Exception("Number of points must be an integer larger than 1.")
@@ -154,12 +165,39 @@ def streamline_scalar(
     scratch_base = op.join(scratch, subject + "_scratch", out_prefix)
 
     ### Reorient streamlines so beginning of each streamline are at the same end
-    bundle = load_tractogram(tck_file, trk_ref)
+    tract_loaded = load_tractogram(tract, trk_ref)
     trk_ref_img, ref_affine = load_nifti(trk_ref)
     oriented_bundle = orient_by_rois(
-        tck_file,
+        tract_loaded,
         ref_affine,
         roi_begin,
         roi_end)
+    # Calculate bundle weights and the profile
+    weights_bundle = dsa.gaussian_weights(oriented_bundle)
+    
+    for scalar_path,scalar_name in zip(scalar_path_list,scalar_name_list):
+        # Calculate tract profile
+        scalar_img, scalar_affine = load_nifti(scalar_path)
+        profile_bundle = dsa.afq_profile(scalar_img, oriented_bundle, scalar_affine,
+                                    weights=weights_bundle)
+        # TODO: SAVE OUT CSV AND PLOT
+                                    
+        # Calculate average scalar in tract
+        tcksample = find_program("tcksample")
+        tcksample_out = op.join(subject_base,scalar+"_mean.csv")
+        tcksample tracts.tck FA.nii.gz FA.csv -stat_tck mean
+
+        cmd_tcksample = [
+            tcksample,
+            scalar_path,
+            tcksample_out,
+            "-stat_tck",
+            "mean",
+        ]
+        if overwrite == False:
+            overwrite_check(tcksample_out)
+        else:
+            cmd_tcksample += ["-force"]
+        run_command(cmd_tcksample)
 
     print("\n DONE \n")
