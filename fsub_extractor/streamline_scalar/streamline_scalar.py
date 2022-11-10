@@ -42,20 +42,20 @@ def get_parser():
         help="Comma delimited list (no spaces) of names to scalar maps (e.g. Fractional_Anisotropy). The number of names must match the number of scalar paths",
         required=True,
     )
-    #parser.add_argument(
+    # parser.add_argument(
     #    "--roi_begin",
     #    "--roi-begin",
     #    help="Binary ROI that will be used to denote where streamlines begin (lower number nodes on tract profiles)",
     #    type=op.abspath,
-        # required=True,
-    #)
-    #parser.add_argument(
+    # required=True,
+    # )
+    # parser.add_argument(
     #    "--roi_end",
     #    "--roi-end",
     #    help="Binary ROI that will be used to denote where streamlines end (higher number nodes on tract profiles)",
     #    type=op.abspath,
-        # required=True,
-    #)
+    # required=True,
+    # )
     parser.add_argument(
         "--n_points",
         "--n-points",
@@ -77,13 +77,13 @@ def get_parser():
         type=str,
         default="",
     )
-    #parser.add_argument(
+    # parser.add_argument(
     #    "--scratch",
     #    "--scratch",
     #    help="Path to scratch directory. Default is current directory.",
     #    type=op.abspath,
     #    default=os.getcwd(),
-    #)
+    # )
     parser.add_argument(
         "--overwrite",
         help="Whether to overwrite outputs. Default is to overwrite.",
@@ -103,14 +103,14 @@ def main():
     main = streamline_scalar(
         subject=args.subject,
         tract=args.tract,
-        #roi_begin=args.roi_begin,
-        #roi_end=args.roi_end,
+        # roi_begin=args.roi_begin,
+        # roi_end=args.roi_end,
         scalar_paths=args.scalar_paths,
         scalar_names=args.scalar_names,
         n_points=args.n_points,
         out_dir=args.out_dir,
         out_prefix=args.out_prefix,
-        #scratch=args.scratch,
+        # scratch=args.scratch,
         overwrite=args.overwrite,
     )
 
@@ -118,14 +118,14 @@ def main():
 def streamline_scalar(
     subject,
     tract,
-    #roi_begin,
-    #roi_end,
+    # roi_begin,
+    # roi_end,
     scalar_paths,
     scalar_names,
     n_points,
     out_dir,
     out_prefix,
-    #scratch,
+    # scratch,
     overwrite,
 ):
 
@@ -166,7 +166,7 @@ def streamline_scalar(
     # Check if out and scratch directories exist
     if op.isdir(out_dir) == False:
         raise Exception(f"Output directory {out_dir} not found on the system.")
-    #if op.isdir(scratch) == False:
+    # if op.isdir(scratch) == False:
     #    raise Exception(f"Scratch directory {scratch} not found on the system.")
 
     ### Prepare output directories ###
@@ -178,11 +178,11 @@ def streamline_scalar(
     # Make subject output and scratch folders if they do not exist, and define the naming convention
     if op.isdir(op.join(out_dir, subject)) == False:
         os.mkdir(op.join(out_dir, subject))
-    #if op.isdir(op.join(scratch, subject + "_scratch")) == False:
+    # if op.isdir(op.join(scratch, subject + "_scratch")) == False:
     #    os.mkdir(op.join(scratch, subject + "_scratch"))
     subject_base = op.join(out_dir, subject)
     outpath_base = op.join(subject_base, out_prefix)
-    #scratch_base = op.join(scratch, subject + "_scratch", out_prefix)
+    # scratch_base = op.join(scratch, subject + "_scratch", out_prefix)
 
     ### Reorient streamlines so beginning of each streamline are at the same end
     tract_loaded = load_tractogram(tract, trk_ref).streamlines
@@ -260,7 +260,7 @@ def streamline_scalar(
         if overwrite == False:
             overwrite_check(stats_outfile)
         stats_outfile_object = open(stats_outfile, "w")
-        stats_string = f"Mean: {tract_avg} \nMedian: {tract_med} \nStandard Deviation: {tract_std} \nTract Profile: {profile_bundle} \nNumber of Streamlines: {n_streamlines}"
+        stats_string = f"Tract: {tract} \nNumber of Streamlines: {n_streamlines} \nScalar: {scalar_path} \nMean: {tract_avg} \nMedian: {tract_med} \nStandard Deviation: {tract_std} \nTract Profile: {profile_bundle} \nProfile Length: {n_points}"
         stats_outfile_object.write(stats_string)
         stats_outfile_object.close()
 
