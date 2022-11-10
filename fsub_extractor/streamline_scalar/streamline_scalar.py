@@ -5,6 +5,8 @@ from dipy.tracking.streamline import orient_by_rois
 import dipy.stats.analysis as dsa
 from dipy.io.image import load_nifti
 from dipy.io.streamline import load_tractogram
+import pandas as pd
+import numpy as np
 
 # Add input arguments
 def get_parser():
@@ -13,20 +15,26 @@ def get_parser():
         description="Extracts tract-average and along-the-tract measures of an input scalar metric (.nii.gz) along a specified streamline file (.tck/.trk)."
     )
     parser.add_argument(
+        "--subject",
+        help="Subject name.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
         "--tract",
         help="Path to tract file (.tck or .trk). Should be in the same space as the scalar map inputs.",
         type=op.abspath,
         required=True,
     )
     parser.add_argument(
-        "--scalars_paths",
+        "--scalar_paths",
         "--scalar-paths",
         help="Comma delimited list (no spaces) of path(s) to scalar maps (e.g. /path/to/FA.nii.gz). This will also be used as a spatial reference file is a .trk file is passed in as a streamlines object.",
         required=True,
     )
     parser.add_argument(
         "--scalar_names",
-        "--scalar-names"
+        "--scalar-names",
         help="Comma delimited list (no spaces) of names to scalar maps (e.g. FA). This will also be used as a spatial reference file is a .trk file is passed in as a streamlines object.",
         required=True,
     )
@@ -35,14 +43,14 @@ def get_parser():
         "--roi-begin",
         help="Binary ROI that will be used to denote where streamlines begin (lower number nodes on tract profiles)",
         type=op.abspath,
-        required=True,
+        # required=True,
     )
     parser.add_argument(
         "--roi_end",
         "--roi-end",
         help="Binary ROI that will be used to denote where streamlines end (higher number nodes on tract profiles)",
         type=op.abspath,
-        required=True,
+        # required=True,
     )
     parser.add_argument(
         "--nb_points",
@@ -89,6 +97,7 @@ def main():
     args = parser.parse_args()
 
     main = streamline_scalar(
+        subject=args.subject,
         tract=args.tract,
         roi_begin=args.roi_begin,
         roi_end=args.roi_end,
@@ -103,6 +112,7 @@ def main():
 
 
 def streamline_scalar(
+    subject,
     tract,
     roi_begin,
     roi_end,
@@ -124,12 +134,12 @@ def streamline_scalar(
     # Make sure number of scalar paths equal number of scalar names
     if len(scalar_path_list) != len(scalar_name_list):
         raise Exception("Number of scalar images and scalar names do not match")
-    
+
     # Check that scalars exist
     for scalar in scalar_path_list:
         if op.exists(scalar) == False:
             raise Exception("Scalar map " + scalar + " not found on the system.")
-            
+
     ### Check for assertion errors ###
     # Make sure tract file is okay
     if op.exists(tract) == False:
@@ -140,6 +150,10 @@ def streamline_scalar(
     if tract[-4:] == ".trk":
         trk_ref = scalar_path_list[0]
         print("\n Using " + trk_ref + " as reference image for TRK file. \n")
+        print("\n Converting .trk to .tck \n")
+        tck_file = trk_to_tck(tract, trk_ref, out_dir, overwrite)
+    else:
+        tck_file = tract
     # Make sure number of points is not negative
     if nb_points < 2:
         raise Exception("Number of points must be an integer larger than 1.")
@@ -160,35 +174,36 @@ def streamline_scalar(
         os.mkdir(op.join(out_dir, subject))
     if op.isdir(op.join(scratch, subject + "_scratch")) == False:
         os.mkdir(op.join(scratch, subject + "_scratch"))
-    subject_base = op.join(out_dir,subject)
+    subject_base = op.join(out_dir, subject)
     outpath_base = op.join(subject_base, out_prefix)
     scratch_base = op.join(scratch, subject + "_scratch", out_prefix)
 
     ### Reorient streamlines so beginning of each streamline are at the same end
-    tract_loaded = load_tractogram(tract, trk_ref)
-    trk_ref_img, ref_affine = load_nifti(trk_ref)
-    oriented_bundle = orient_by_rois(
-        tract_loaded,
-        ref_affine,
-        roi_begin,
-        roi_end)
+    # tract_loaded = load_tractogram(tract, trk_ref)
+    # trk_ref_img, ref_affine = load_nifti(trk_ref)
+    # oriented_bundle = orient_by_rois(
+    #    tract_loaded,
+    #    ref_affine,
+    #    roi_begin,
+    #    roi_end)
     # Calculate bundle weights and the profile
-    weights_bundle = dsa.gaussian_weights(oriented_bundle)
+    # weights_bundle = dsa.gaussian_weights(oriented_bundle)
+
+    for scalar_path, scalar_name in zip(scalar_path_list, scalar_name_list):
     
-    for scalar_path,scalar_name in zip(scalar_path_list,scalar_name_list):
         # Calculate tract profile
-        scalar_img, scalar_affine = load_nifti(scalar_path)
-        profile_bundle = dsa.afq_profile(scalar_img, oriented_bundle, scalar_affine,
-                                    weights=weights_bundle)
+        # scalar_img, scalar_affine = load_nifti(scalar_path)
+        # profile_bundle = dsa.afq_profile(scalar_img, oriented_bundle, scalar_affine,
+        #                            weights=weights_bundle)
         # TODO: SAVE OUT CSV AND PLOT
-                                    
+
         # Calculate average scalar in tract
         tcksample = find_program("tcksample")
-        tcksample_out = op.join(subject_base,scalar+"_mean.csv")
-        tcksample tracts.tck FA.nii.gz FA.csv -stat_tck mean
+        tcksample_out = op.join(subject_base, scalar_name + "_streamline_means.csv")
 
         cmd_tcksample = [
             tcksample,
+            tck_file,
             scalar_path,
             tcksample_out,
             "-stat_tck",
@@ -199,5 +214,13 @@ def streamline_scalar(
         else:
             cmd_tcksample += ["-force"]
         run_command(cmd_tcksample)
+
+        # Load per-streamline averages, average across streamlines to get whole track mean
+        streamline_avgs = pd.read_csv(tcksample_out, skiprows=1)
+        streamline_avgs_num = [
+            float(avg.removesuffix(".1")) for avg in streamline_avgs.columns
+        ]
+        tract_avg = np.mean(streamline_avgs_num)
+        print(tract_avg)
 
     print("\n DONE \n")
