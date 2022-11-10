@@ -12,13 +12,10 @@ import numpy as np
 def get_parser():
 
     parser = argparse.ArgumentParser(
-        description="Extracts tract-average and along-the-tract measures of an input scalar metric (.nii.gz) along a specified streamline file (.tck/.trk)."
+        description="Extracts tract-average and along-the-tract measures of input scalar metrics (.nii.gz) for a specified streamline file (.tck/.trk)."
     )
     parser.add_argument(
-        "--subject",
-        help="Subject name.",
-        type=str,
-        required=True,
+        "--subject", help="Subject name.", type=str, required=True,
     )
     parser.add_argument(
         "--tract",
@@ -35,7 +32,7 @@ def get_parser():
     parser.add_argument(
         "--scalar_names",
         "--scalar-names",
-        help="Comma delimited list (no spaces) of names to scalar maps (e.g. FA). This will also be used as a spatial reference file is a .trk file is passed in as a streamlines object.",
+        help="Comma delimited list (no spaces) of names to scalar maps (e.g. FA). The number of names must match the number of scalar paths",
         required=True,
     )
     parser.add_argument(
@@ -127,7 +124,7 @@ def streamline_scalar(
 
     # TODO: add docs
 
-    ### Split string of scalars in to list
+    ### Split string of scalars to lists
     scalar_path_list = [op.abspath(scalar) for scalar in scalar_paths.split(",")]
     scalar_name_list = scalar_names.split(",")
 
@@ -146,15 +143,15 @@ def streamline_scalar(
         raise Exception("Tract file " + tract + " is not found on the system.")
     if tract[-4:] not in [".trk", ".tck"]:
         raise Exception("Tract file " + tract + " is not of a supported file type.")
-    # Use first scalar as reference file for trk streamlines
-    if tract[-4:] == ".trk":
+    # If .trk, use first scalar as reference file for conversion to .tck
+    elif tract[-4:] == ".trk":
         trk_ref = scalar_path_list[0]
         print("\n Using " + trk_ref + " as reference image for TRK file. \n")
         print("\n Converting .trk to .tck \n")
         tck_file = trk_to_tck(tract, trk_ref, out_dir, overwrite)
     else:
         tck_file = tract
-    # Make sure number of points is not negative
+    # Make sure number of points for tract profile is not negative
     if nb_points < 2:
         raise Exception("Number of points must be an integer larger than 1.")
     # Check if out and scratch directories exist
@@ -190,14 +187,19 @@ def streamline_scalar(
     # weights_bundle = dsa.gaussian_weights(oriented_bundle)
 
     for scalar_path, scalar_name in zip(scalar_path_list, scalar_name_list):
-    
+
+        print(f"\n Processing scalar {scalar_path} under name {scalar_name} \n")
+
         # Calculate tract profile
+        # print(f"\n Calculating tract profile for {scalar_name} \n")
         # scalar_img, scalar_affine = load_nifti(scalar_path)
         # profile_bundle = dsa.afq_profile(scalar_img, oriented_bundle, scalar_affine,
         #                            weights=weights_bundle)
         # TODO: SAVE OUT CSV AND PLOT
 
-        # Calculate average scalar in tract
+        ### Calculate tract average scalar
+        # Start by finding average per streamline with 'tcksample'
+        print(f"\n Calculating tract-average summary stats for {scalar_name} \n")
         tcksample = find_program("tcksample")
         tcksample_out = op.join(subject_base, scalar_name + "_streamline_means.csv")
 
@@ -220,7 +222,16 @@ def streamline_scalar(
         streamline_avgs_num = [
             float(avg.removesuffix(".1")) for avg in streamline_avgs.columns
         ]
+        # Calculate summary stats across streamlines
         tract_avg = np.mean(streamline_avgs_num)
-        print(tract_avg)
+        tract_std = np.std(streamline_avgs_num)
+        tract_med = np.median(streamline_avgs_num)
+        n_streamlines = len(streamline_avgs_num)
+        # Write summary stats to outfile
+        stats_outfile = op.join(subject_base, scalar_name + "_stats.txt")
+        stats_outfile_object = open(stats_outfile, "w")
+        stats_string = f"Mean: {tract_avg} \nMedian: {tract_med} \nStandard Deviation: {tract_std} \nNumber of Streamlines: {n_streamlines}"
+        stats_outfile_object.write(stats_string)
+        stats_outfile_object.close()
 
     print("\n DONE \n")
