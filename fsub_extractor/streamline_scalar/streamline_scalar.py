@@ -1,12 +1,19 @@
 import argparse
+import os
 import os.path as op
-from fsub_extractor.utils.utils import *
-from dipy.tracking.streamline import orient_by_rois
-import dipy.stats.analysis as dsa
-from dipy.io.image import load_nifti
-from dipy.io.streamline import load_tractogram
 import pandas as pd
 import numpy as np
+from dipy.tracking.streamline import orient_by_rois
+import dipy.stats.analysis as dsa
+from dipy.io.image import load_nifti, load_nifti_data
+from dipy.io.streamline import load_tractogram
+from fsub_extractor.utils.utils import (
+    run_command,
+    overwrite_check,
+    trk_to_tck,
+    find_program,
+)
+import matplotlib.pyplot as plt
 
 # Add input arguments
 def get_parser():
@@ -50,8 +57,8 @@ def get_parser():
         # required=True,
     )
     parser.add_argument(
-        "--nb_points",
-        "--nb-points",
+        "--n_points",
+        "--n-points",
         help="Number of nodes to use in tract profile (default is 100)",
         type=int,
         default=100,
@@ -100,7 +107,7 @@ def main():
         roi_end=args.roi_end,
         scalar_paths=args.scalar_paths,
         scalar_names=args.scalar_names,
-        nb_points=args.nb_points,
+        n_points=args.n_points,
         out_dir=args.out_dir,
         out_prefix=args.out_prefix,
         scratch=args.scratch,
@@ -115,7 +122,7 @@ def streamline_scalar(
     roi_end,
     scalar_paths,
     scalar_names,
-    nb_points,
+    n_points,
     out_dir,
     out_prefix,
     scratch,
@@ -135,30 +142,32 @@ def streamline_scalar(
     # Check that scalars exist
     for scalar in scalar_path_list:
         if op.exists(scalar) == False:
-            raise Exception("Scalar map " + scalar + " not found on the system.")
+            raise Exception(f"Scalar map {scalar} not found on the system.")
 
     ### Check for assertion errors ###
     # Make sure tract file is okay
     if op.exists(tract) == False:
-        raise Exception("Tract file " + tract + " is not found on the system.")
+        raise Exception(f"Tract file {tract} is not found on the system.")
     if tract[-4:] not in [".trk", ".tck"]:
-        raise Exception("Tract file " + tract + " is not of a supported file type.")
+        raise Exception(f"Tract file {tract} is not of a supported file type.")
     # If .trk, use first scalar as reference file for conversion to .tck
-    elif tract[-4:] == ".trk":
-        trk_ref = scalar_path_list[0]
-        print("\n Using " + trk_ref + " as reference image for TRK file. \n")
+    trk_ref = scalar_path_list[0]
+    print(f"\n Using {trk_ref} as reference anatomy image. \n")
+    if tract[-4:] == ".trk":
         print("\n Converting .trk to .tck \n")
         tck_file = trk_to_tck(tract, trk_ref, out_dir, overwrite)
     else:
         tck_file = tract
     # Make sure number of points for tract profile is not negative
-    if nb_points < 2:
-        raise Exception("Number of points must be an integer larger than 1.")
+    if n_points < 2:
+        raise Exception(
+            "Number of points ({n_points}) must be an integer larger than 1."
+        )
     # Check if out and scratch directories exist
     if op.isdir(out_dir) == False:
-        raise Exception("Output directory " + out_dir + " not found on the system.")
+        raise Exception(f"Output directory {out_dir} not found on the system.")
     if op.isdir(scratch) == False:
-        raise Exception("Scratch directory " + scratch + " not found on the system.")
+        raise Exception(f"Scratch directory {scratch} not found on the system.")
 
     ### Prepare output directories ###
     # Add an underscore to separate prefix from file names if a prefix is specified
@@ -176,25 +185,41 @@ def streamline_scalar(
     scratch_base = op.join(scratch, subject + "_scratch", out_prefix)
 
     ### Reorient streamlines so beginning of each streamline are at the same end
-    # tract_loaded = load_tractogram(tract, trk_ref)
+    tract_loaded = load_tractogram(tract, trk_ref).streamlines
     # trk_ref_img, ref_affine = load_nifti(trk_ref)
+    # roi_begin_img = load_nifti_data(roi_begin)
+    # roi_end_img = load_nifti_data(roi_end)
     # oriented_bundle = orient_by_rois(
-    #    tract_loaded,
-    #    ref_affine,
-    #    roi_begin,
-    #    roi_end)
+    #   tract_loaded,
+    #   ref_affine,
+    #   roi_begin_img,
+    #   roi_end_img)
+
     # Calculate bundle weights and the profile
     # weights_bundle = dsa.gaussian_weights(oriented_bundle)
+    weights_bundle = dsa.gaussian_weights(tract_loaded, n_points=n_points)
 
     for scalar_path, scalar_name in zip(scalar_path_list, scalar_name_list):
 
         print(f"\n Processing scalar {scalar_path} under name {scalar_name} \n")
 
         # Calculate tract profile
-        # print(f"\n Calculating tract profile for {scalar_name} \n")
-        # scalar_img, scalar_affine = load_nifti(scalar_path)
-        # profile_bundle = dsa.afq_profile(scalar_img, oriented_bundle, scalar_affine,
-        #                            weights=weights_bundle)
+        print(f"\n Calculating tract profile for {scalar_name} \n")
+        scalar_img, scalar_affine = load_nifti(scalar_path)
+        profile_bundle = dsa.afq_profile(
+            scalar_img,
+            tract_loaded,
+            scalar_affine,
+            weights=weights_bundle,
+            n_points=n_points,
+            orient_by=tract_loaded[0],
+        )
+        # Save out plot
+        plt.plot(profile_bundle)
+        plt.ylabel(scalar_name)
+        plt.xlabel("Node along bundle")
+        profile_fig_outfile = op.join(subject_base, scalar_name + "_profile.png")
+        plt.savefig(profile_fig_outfile)
         # TODO: SAVE OUT CSV AND PLOT
 
         ### Calculate tract average scalar
@@ -230,7 +255,7 @@ def streamline_scalar(
         # Write summary stats to outfile
         stats_outfile = op.join(subject_base, scalar_name + "_stats.txt")
         stats_outfile_object = open(stats_outfile, "w")
-        stats_string = f"Mean: {tract_avg} \nMedian: {tract_med} \nStandard Deviation: {tract_std} \nNumber of Streamlines: {n_streamlines}"
+        stats_string = f"Mean: {tract_avg} \nMedian: {tract_med} \nStandard Deviation: {tract_std} \nTract Profile: {profile_bundle} \nNumber of Streamlines: {n_streamlines}"
         stats_outfile_object.write(stats_string)
         stats_outfile_object.close()
 
