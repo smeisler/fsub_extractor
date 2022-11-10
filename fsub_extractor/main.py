@@ -18,7 +18,7 @@ def get_parser():
     )
     parser.add_argument(
         "--tract",
-        help="Path to tract file (.tck or .trk). Should be in the same space as FreeSurfer and scalar map inputs.",
+        help="Path to tract file (.tck or .trk). Should be in the same space as FreeSurfer inputs.",
         type=op.abspath,
         required=True,
     )
@@ -47,7 +47,7 @@ def get_parser():
     parser.add_argument(
         "--trk-ref",
         "--trk_ref",
-        help="Path to reference file, if passing in a .trk file. Typically a nifti-related object from the native diffusion used for streamlines generation",
+        help="Path to reference file, if passing in a .trk file. Typically a nifti-related object from the native diffusion used for streamlines generation (e.g., an FA map)",
         type=op.abspath,
     )
     parser.add_argument(
@@ -59,10 +59,6 @@ def get_parser():
         "--roi2",
         help="Second ROI file (.mgz, .label, or .nii.gz). If specified, program will find streamlines connecting ROI1 and ROI2. File should be binary (1 in ROI, 0 elsewhere).",
         type=op.abspath,
-    )
-    parser.add_argument(
-        "--scalars",
-        help="Comma delimited list (no spaces) of scalar map(s) to sample streamlines on (.nii.gz). Should be in the same space as .tck and FreeSurfer inputs.",
     )
     parser.add_argument(
         "--search-dist",
@@ -228,7 +224,6 @@ def main():
         trk_ref=args.trk_ref,
         gmwmi=args.gmwmi,
         roi2=args.roi2,
-        scalars=args.scalars,
         search_dist=str(args.search_dist),
         search_type=str(args.search_type),
         projfrac_params=args.projfrac_params,
@@ -263,7 +258,6 @@ def extractor(
     trk_ref,
     gmwmi,
     roi2,
-    scalars,
     search_dist,
     search_type,
     projfrac_params,
@@ -369,22 +363,15 @@ def extractor(
         )
         gmwmi = None
 
-    # 5. Check if scalar files exist
-    if scalars != None:
-        scalar_list = [op.abspath(scalar) for scalar in scalars.split(",")]
-        for scalar in scalar_list:
-            if op.exists(scalar) == False:
-                raise Exception("Scalar map " + scalar + " not found on the system.")
-
-    # 6. Check if out and scratch directories exist
+    # 5. Check if out and scratch directories exist
     if op.isdir(out_dir) == False:
         raise Exception("Output directory " + out_dir + " not found on the system.")
     if op.isdir(scratch) == False:
         raise Exception("Scratch directory " + scratch + " not found on the system.")
 
-    # 7. Make sure FS license is valid [TODO: HOW??]
+    # 6. Make sure FS license is valid [TODO: HOW??]
 
-    # 8. Make sure camera angle is valid
+    # 7. Make sure camera angle is valid
     if camera_angle != "saggital" and camera_angle != "axial":
         raise Exception(
             "Camera angle must be either 'saggital' or 'axial'. '"
@@ -573,7 +560,5 @@ def extractor(
                 saggital_offset=saggital_offset,
                 camera_angle=camera_angle,
             )
-
-    ### [TODO: Add scalar map stats] ###
 
     print("\n DONE \n")
