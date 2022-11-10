@@ -217,7 +217,7 @@ def streamline_scalar(
         # Save out plot
         plt.plot(profile_bundle)
         plt.ylabel(scalar_name)
-        plt.xlabel("Node along bundle")
+        plt.xlabel("Node along Bundle")
         profile_fig_outfile = op.join(subject_base, scalar_name + "_profile.png")
         plt.savefig(profile_fig_outfile)
         # TODO: SAVE OUT CSV AND PLOT
