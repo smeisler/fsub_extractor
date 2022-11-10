@@ -3,6 +3,7 @@ import os
 import os.path as op
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 from dipy.tracking.streamline import orient_by_rois
 import dipy.stats.analysis as dsa
 from dipy.io.image import load_nifti, load_nifti_data
@@ -13,7 +14,6 @@ from fsub_extractor.utils.utils import (
     trk_to_tck,
     find_program,
 )
-import matplotlib.pyplot as plt
 
 # Add input arguments
 def get_parser():
