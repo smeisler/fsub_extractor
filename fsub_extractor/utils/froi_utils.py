@@ -6,7 +6,6 @@ from fsub_extractor.utils.system_utils import *
 def project_roi(
     roi_in, fs_dir, subject, hemi, projfrac_params, outpath_base, overwrite
 ):
-    # TODO: make projfrac parameters an input argument
     """Projects input ROI into the white matter. If volumetric ROI is input, starts by mapping it to the surface.
 
     Parameters

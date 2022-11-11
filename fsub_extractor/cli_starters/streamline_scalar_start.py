@@ -1,7 +1,7 @@
 import argparse
 import os
 import os.path as op
-from fsub_extractor.functions import streamline_scalar
+from fsub_extractor.functions.streamline_scalar import streamline_scalar
 
 # Add input arguments
 def get_parser():
@@ -10,10 +10,7 @@ def get_parser():
         description="Extracts tract-average and along-the-tract measures of input scalar metrics (.nii.gz) for a specified streamline file (.tck/.trk)."
     )
     parser.add_argument(
-        "--subject",
-        help="Subject name.",
-        type=str,
-        required=True,
+        "--subject", help="Subject name.", required=True,
     )
     parser.add_argument(
         "--tract",
@@ -68,13 +65,6 @@ def get_parser():
         type=str,
         default="",
     )
-    # parser.add_argument(
-    #    "--scratch",
-    #    "--scratch",
-    #    help="Path to scratch directory. Default is current directory.",
-    #    type=op.abspath,
-    #    default=os.getcwd(),
-    # )
     parser.add_argument(
         "--overwrite",
         help="Whether to overwrite outputs. Default is to overwrite.",
@@ -101,6 +91,5 @@ def main():
         n_points=args.n_points,
         out_dir=args.out_dir,
         out_prefix=args.out_prefix,
-        # scratch=args.scratch,
         overwrite=args.overwrite,
     )

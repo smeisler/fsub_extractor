@@ -1,7 +1,7 @@
 import argparse
 import os
 import os.path as op
-from fsub_extractor.functions import extractor
+from fsub_extractor.functions.extractor import extractor
 
 # Add input arguments
 def get_parser():
@@ -12,7 +12,6 @@ def get_parser():
     parser.add_argument(
         "--subject",
         help="Subject name. Unless --skip-roi-proj is specified, this must match the name in the FreeSurfer folder.",
-        type=str,
         required=True,
     )
     parser.add_argument(
@@ -30,7 +29,7 @@ def get_parser():
     parser.add_argument(
         "--fs-dir",
         "--fs_dir",
-        help="Path to FreeSurfer directory for the subject. Required unless --skip-roi-proj is specified.",
+        help="Path to FreeSurfer subjects directory. Required unless --skip-roi-proj is specified.",
         type=op.abspath,
     )
     parser.add_argument(
@@ -46,7 +45,7 @@ def get_parser():
     parser.add_argument(
         "--trk-ref",
         "--trk_ref",
-        help="Path to reference file, if passing in a .trk file. Typically a nifti-related object from the native diffusion used for streamlines generation (e.g., an FA map)",
+        help="Path to reference file, if passing in a .trk file. Typically a nifti-related object from the native diffusion used for streamlines generation (e.g., an FA map).",
         type=op.abspath,
     )
     parser.add_argument(
@@ -93,13 +92,6 @@ def get_parser():
         help="Prefix for all output files. Default is no prefix.",
         type=str,
         default="",
-    )
-    parser.add_argument(
-        "--scratch",
-        "--scratch",
-        help="Path to scratch directory. Default is current directory.",
-        type=op.abspath,
-        default=os.getcwd(),
     )
     parser.add_argument(
         "--overwrite",
@@ -159,7 +151,7 @@ def get_parser():
     parser.add_argument(
         "--roi2-color",
         "--roi2_color",
-        help="Comma-delimited (no spaces) color spec for ROI2 in visualization, as fractional R,G,B. Default is 0.2,1,1.",
+        help="Comma-delimited (no spaces) color spec for ROI2 in visualization, as fractional R,G,B. Default is 1,0.2,1.",
         default="1,0.2,1",
         metavar=("R,G,B"),
     )
@@ -228,7 +220,6 @@ def main():
         projfrac_params=args.projfrac_params,
         out_dir=args.out_dir,
         out_prefix=args.out_prefix,
-        scratch=args.scratch,
         overwrite=args.overwrite,
         skip_roi_projection=args.skip_roi_projection,
         skip_gmwmi_intersection=args.skip_gmwmi_intersection,

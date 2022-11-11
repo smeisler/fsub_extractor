@@ -22,7 +22,6 @@ def extractor(
     projfrac_params,
     out_dir,
     out_prefix,
-    scratch,
     overwrite,
     skip_roi_projection,
     skip_gmwmi_intersection,
@@ -42,27 +41,29 @@ def extractor(
 
     ### Check for assertion errors ###
 
-    # 1. If ROIs are to be projected, make sure FS dir exists, hemispheres are valid, and proj-frac params are valid
-    if skip_roi_projection == False:
+    # 1. If ROIs are to be projected or GMWMI craeted, make sure FS dir exists, hemispheres are valid, and proj-frac params are valid
+    fs_sub_dir = op.join(fs_dir, subject)
+    if skip_roi_projection == False or gmwmi == None:
         # Check FS dir
         if fs_dir == None:
             raise Exception("No FreeSurfer directory passed in.")
-        fs_sub_dir = op.join(fs_dir, subject)
         if op.isdir(op.join(fs_sub_dir, "surf")) == False:
             raise Exception(
                 f"{fs_sub_dir} does not appear to be a valid FreeSurfer directory."
             )
+
+    if hemi != None:
+        hemi_list = hemi.split(",")
+
+    if skip_roi_projection == False:
         # Check hemi(s)
         if hemi == None:
             raise Exception("--hemi must be specified if not skipping ROI projection.")
         else:
-            hemi_list = hemi.split(",")
             for hemisphere in hemi_list:
                 if hemisphere != "lh" and hemisphere != "rh":
                     raise Exception(
-                        "Hemispheres must be either 'lh' or 'rh'. Current input is "
-                        + str(hemi_list)
-                        + "."
+                        f"Hemispheres must be either 'lh' or 'rh'. Current input is {hemi_list}."
                     )
             if len(hemi_list) > 2:
                 raise Exception(
@@ -121,19 +122,13 @@ def extractor(
         )
         gmwmi = None
 
-    # 5. Check if out and scratch directories exist
-    if op.isdir(out_dir) == False:
-        raise Exception(f"Output directory {out_dir} not found on the system.")
-    if op.isdir(scratch) == False:
-        raise Exception(f"Scratch directory {scratch} not found on the system.")
-
-    # 6. Make sure FS license is valid [TODO: HOW??]
-
-    # 7. Make sure camera angle is valid
+    # 5. Make sure camera angle is valid
     if camera_angle != "saggital" and camera_angle != "axial":
         raise Exception(
-            "Camera angle must be either 'saggital' or 'axial'. '{camera_angle}' was specified."
+            f"Camera angle must be either 'saggital' or 'axial'. '{camera_angle}' was specified."
         )
+
+    # 6. Make sure FS license is valid [TODO: HOW??]
 
     ### Prepare output directories ###
     # Add an underscore to separate prefix from file names if a prefix is specified
@@ -141,21 +136,24 @@ def extractor(
         if out_prefix[-1] != "_":
             out_prefix += "_"
 
-    # Make output and scratch folders if they do not exist, and define the naming convention
-    if op.isdir(op.join(out_dir, subject)) == False:
-        os.mkdir(op.join(out_dir, subject))
-    if op.isdir(op.join(scratch, subject + "_scratch")) == False:
-        os.mkdir(op.join(scratch, subject + "_scratch"))
-    subject_base = op.join(out_dir, subject)
-    outpath_base = op.join(subject_base, out_prefix)
-    scratch_base = op.join(scratch, subject + "_scratch", out_prefix)
+    # Make output folders if they do not exist, and define the naming convention
+    anat_out_dir = op.join(out_dir, subject, "anat")
+    dwi_out_dir = op.join(out_dir, subject, "dwi")
+    func_out_dir = op.join(out_dir, subject, "func")
+    os.makedirs(anat_out_dir, exist_ok=True)
+    os.makedirs(dwi_out_dir, exist_ok=True)
+    os.makedirs(func_out_dir, exist_ok=True)
+    anat_out_base = op.join(anat_out_dir, out_prefix)
+    dwi_out_base = op.join(dwi_out_dir, out_prefix)
+    func_out_base = op.join(func_out_dir, out_prefix)
 
     # TODO: Parallelize GMWMI creation, roi projection/intersection
     ### Create a GMWMI, intersect with ROI ###
-    if skip_gmwmi_intersection == False:
-        if gmwmi == None:
-            print("\n Creating a GMWMI \n")
-            gmwmi = anat_to_gmwmi(fs_sub_dir, subject_base, overwrite)
+    if skip_gmwmi_intersection == False and gmwmi == None:
+        print("\n Creating a GMWMI \n")
+        (fivett, gmwmi, gmwmi_bin) = anat_to_gmwmi(
+            fs_sub_dir, anat_out_dir, overwrite=overwrite
+        )
 
     ### Set flag for whether two rois were passed in ###
     if roi2 != None:
@@ -165,27 +163,25 @@ def extractor(
 
     ### Project the ROI(s) into the white matter and intersect with GMWMI ###
     if skip_roi_projection == False:
-        print("\n Projecting ROI1 \n")
+        print("\n Projecting ROI1 into white matter \n")
         roi1_projected = project_roi(
             roi_in=roi1,
             fs_dir=fs_dir,
             subject=subject,
             hemi=hemi_list[0],
             projfrac_params=projfrac_params_list,
-            outpath_base=outpath_base,
+            outpath_base=func_out_base,
             overwrite=overwrite,
         )
     else:
-        print("\n Skipping ROI projection \n")
+        print("\n Skipping ROI1 projection \n")
         roi1_projected = roi1
     if skip_gmwmi_intersection == False:
         print("\n Intersecting ROI1 with GMWMI \n")
         roi1_intersected = intersect_gmwmi(
             roi_in=roi1_projected,
-            gmwmi=gmwmi,
-            outpath_base=op.join(
-                out_dir, subject, op.basename(roi1_projected).removesuffix(".nii.gz")
-            ),
+            gmwmi=gmwmi_bin,
+            outpath_base=roi1_projected.removesuffix(".nii.gz"),
             overwrite=overwrite,
         )
     else:
@@ -205,7 +201,7 @@ def extractor(
                 subject=subject,
                 hemi=hemi_list[-1],
                 projfrac_params=projfrac_params_list,
-                outpath_base=outpath_base,
+                outpath_base=func_out_base,
                 overwrite=overwrite,
             )
         else:
@@ -214,12 +210,8 @@ def extractor(
             print("\n Intersecting ROI2 with GMWMI \n")
             roi2_intersected = intersect_gmwmi(
                 roi_in=roi2_projected,
-                gmwmi=gmwmi,
-                outpath_base=op.join(
-                    out_dir,
-                    subject,
-                    op.basename(roi2_projected).removesuffix(".nii.gz"),
-                ),
+                gmwmi=gmwmi_bin,
+                outpath_base=roi2_projected.removesuffix(".nii.gz"),
                 overwrite=overwrite,
             )
         else:
@@ -230,21 +222,21 @@ def extractor(
         rois_in = merge_rois(
             roi1=roi1_intersected,
             roi2=roi2_intersected,
-            out_file=outpath_base + "rois_merged.nii.gz",
+            out_file=func_out_base + "rois_merged.nii.gz",
             overwrite=overwrite,
         )
 
     ### Convert .trk to .tck if needed ###
     if tract[-4:] == ".trk":
         print("\n Converting .trk to .tck \n")
-        tck_file = trk_to_tck(tract, gmwmi, out_dir, overwrite)
+        tck_file = trk_to_tck(tract, gmwmi, dwi_out_dir, overwrite)
     else:
         tck_file = tract
 
     ### Run MRtrix Tract Extraction ###
     print("\n Extracing the sub-bundle \n")
     extracted_tck = extract_tck_mrtrix(
-        tck_file, rois_in, outpath_base, search_dist, search_type, two_rois, overwrite
+        tck_file, rois_in, dwi_out_base, search_dist, search_type, two_rois, overwrite
     )
     print("\n The extracted tract is located at " + extracted_tck + ".\n")
 
@@ -280,7 +272,7 @@ def extractor(
                     orig_bundle=tract,
                     fsub_bundle=extracted_tck,
                     ref_anat=ref_anat,
-                    outpath_base=outpath_base + hemi_to_viz + "_",
+                    outpath_base=dwi_out_base + hemi_to_viz + "_",
                     roi1=roi1_intersected,
                     roi2=roi2_intersected,
                     orig_color=orig_color_list,
