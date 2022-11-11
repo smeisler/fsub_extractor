@@ -145,7 +145,7 @@ def anat_to_gmwmi(anat, subject_base, overwrite):
     # Run 5ttgen to generate 5tt image
     print("\n Generating 5TT Image \n")
     fivettgen = find_program("5ttgen")
-    fivettgen_out = op.join(subject_base,"5tt.nii.gz")
+    fivettgen_out = op.join(subject_base, "5tt.nii.gz")
     cmd_5ttgen = [fivettgen, fivett_algo, anat, fivettgen_out, "-nocrop"]
     if overwrite:
         cmd_5ttgen += ["-force"]
@@ -156,7 +156,7 @@ def anat_to_gmwmi(anat, subject_base, overwrite):
     # Run 5tt2gmwmi to generate GMWMI image
     print("\n Generating GMWMI Image \n")
     fivett2gmwmi = find_program("5tt2gmwmi")
-    fivett2gmwmi_out = op.join(subject_base ,"gmwmi.nii.gz")
+    fivett2gmwmi_out = op.join(subject_base, "gmwmi.nii.gz")
     cmd_5tt2gmwmi = [
         fivett2gmwmi,
         fivettgen_out,
@@ -267,11 +267,10 @@ def project_roi(
             projfrac_params[0],
             projfrac_params[1],
             projfrac_params[2],
-            "--identity"
-
+            "--identity",
         ]
         run_command(cmd_mri_label2vol)
-        
+
         return outpath_base + filename
 
     if roi_surf[-4:] == ".mgz":
@@ -432,7 +431,7 @@ def extract_tck_mrtrix(
         tck_file,
         rois_in,
         tck2connectome_connectome_out,
-        "-assignment_"+search_type+"_search",
+        "-assignment_" + search_type + "_search",
         search_dist,
         "-out_assignments",
         tck2connectome_assignments_out,

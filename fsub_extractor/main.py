@@ -390,7 +390,7 @@ def extractor(
         os.mkdir(op.join(out_dir, subject))
     if op.isdir(op.join(scratch, subject + "_scratch")) == False:
         os.mkdir(op.join(scratch, subject + "_scratch"))
-    subject_base = op.join(out_dir,subject)
+    subject_base = op.join(out_dir, subject)
     outpath_base = op.join(subject_base, out_prefix)
     scratch_base = op.join(scratch, subject + "_scratch", out_prefix)
 
