@@ -189,14 +189,14 @@ def get_parser():
         "--axial_offset",
         help="Float (-1,1) describing where to display axial slice. -1 is bottom, 1 is top. Default is 0.0.",
         type=float,
-        default=0.0,  # TODO: get floats to work
+        default=0.0,
     )
     parser.add_argument(
         "--saggital-offset",
         "--saggital_offset",
         help="Float (-1,1) describing where to display saggital slice. -1 is left, 1 is right. Default is 0.0.",
         type=float,
-        default=0.0,  # TODO: get floats to work
+        default=0.0,
     )
     parser.add_argument(
         "--camera-angle",
@@ -281,9 +281,8 @@ def extractor(
     camera_angle,
 ):
 
-    # TODO: add docs
-
     ### Check for assertion errors ###
+    
     # 1. If ROIs are to be projected, make sure FS dir exists, hemispheres are valid, and proj-frac params are valid
     if skip_roi_projection == False:
         # Check FS dir
@@ -291,8 +290,7 @@ def extractor(
             raise Exception("No FreeSurfer directory passed in.")
         fs_sub_dir = op.join(fs_dir, subject)
         if op.isdir(op.join(fs_sub_dir, "surf")) == False:
-            raise Exception(
-                fs_sub_dir + " does not appear to be a valid FreeSurfer directory."
+            raise Exception(f"{fs_sub_dir} does not appear to be a valid FreeSurfer directory."
             )
         # Check hemi(s)
         if hemi == None:
@@ -331,24 +329,24 @@ def extractor(
 
     # 2. Make sure ROI(s) exist and are the correct file types
     if op.exists(roi1) == False:
-        raise Exception("ROI file " + roi1 + " is not found on the system.")
+        raise Exception(f"ROI file {roi1} is not found on the system.")
     if roi1[-7:] != ".nii.gz" and roi1[-4:] != ".mgz" and roi1[-6:] != ".label":
-        raise Exception("ROI file " + roi1 + " is not a supported file type.")
+        raise Exception(f"ROI file {roi1} is not a supported file type.")
     if roi2 != None and op.exists(roi2) == False:
-        raise Exception("ROI file " + roi2 + " is not found on the system.")
+        raise Exception(f"ROI file {roi2} is not found on the system.")
     if (
         roi2 != None
         and roi2[-7:] != ".nii.gz"
         and roi2[-4:] != ".mgz"
         and roi2[-6:] != ".label"
     ):
-        raise Exception("ROI file " + roi2 + " is not of a supported file type.")
+        raise Exception(f"ROI file {roi2} is not of a supported file type.")
 
     # 3. Make sure tract file is okay
     if op.exists(tract) == False:
-        raise Exception("Tract file " + tract + " is not found on the system.")
+        raise Exception(f"Tract file {tract} is not found on the system.")
     if tract[-4:] not in [".trk", ".tck"]:
-        raise Exception("Tract file " + tract + " is not of a supported file type.")
+        raise Exception(f"Tract file {tract} is not of a supported file type.")
     if tract[-4:] == ".trk" and trk_ref == None:
         raise Exception(".trk file passed in without a --trk-ref input.")
 
@@ -365,19 +363,15 @@ def extractor(
 
     # 5. Check if out and scratch directories exist
     if op.isdir(out_dir) == False:
-        raise Exception("Output directory " + out_dir + " not found on the system.")
+        raise Exception(f"Output directory {out_dir} not found on the system.")
     if op.isdir(scratch) == False:
-        raise Exception("Scratch directory " + scratch + " not found on the system.")
+        raise Exception(f"Scratch directory {scratch} not found on the system.")
 
     # 6. Make sure FS license is valid [TODO: HOW??]
 
     # 7. Make sure camera angle is valid
     if camera_angle != "saggital" and camera_angle != "axial":
-        raise Exception(
-            "Camera angle must be either 'saggital' or 'axial'. '"
-            + camera_angle
-            + "' was specified."
-        )
+        raise Exception("Camera angle must be either 'saggital' or 'axial'. '{camera_angle}' was specified.")
 
     ### Prepare output directories ###
     # Add an underscore to separate prefix from file names if a prefix is specified

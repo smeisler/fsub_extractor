@@ -16,10 +16,7 @@ def overwrite_check(file):
     None
     """
     if op.exists(file):
-        raise Exception(
-            "Output file "
-            + file
-            + " already exists. Aborting program. Specify --overwrite if you would like to overwrite files."
+        raise Exception(f"Output file {file} already exists. Aborting program. Specify --overwrite if you would like to overwrite files."
         )
 
     return None
@@ -51,7 +48,7 @@ def find_program(program):
         exe_file = op.join(path, program)
         if is_exe(exe_file):
             return program
-    raise Exception("Command " + program + " could not be found in PATH.")
+    raise Exception(f"Command {program} could not be found in PATH.")
 
 
 def run_command(cmd_list):
@@ -69,10 +66,7 @@ def run_command(cmd_list):
     function_name = cmd_list[0]
     return_code = subprocess.run(cmd_list).returncode
     if return_code != 0:
-        raise Exception(
-            "Command "
-            + function_name
-            + " exited with errors. See message above for more information."
+        raise Exception(f"Command {function_name} exited with errors. See message above for more information."
         )
 
     return None
