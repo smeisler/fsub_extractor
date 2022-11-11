@@ -282,7 +282,7 @@ def extractor(
 ):
 
     ### Check for assertion errors ###
-    
+
     # 1. If ROIs are to be projected, make sure FS dir exists, hemispheres are valid, and proj-frac params are valid
     if skip_roi_projection == False:
         # Check FS dir
@@ -290,7 +290,8 @@ def extractor(
             raise Exception("No FreeSurfer directory passed in.")
         fs_sub_dir = op.join(fs_dir, subject)
         if op.isdir(op.join(fs_sub_dir, "surf")) == False:
-            raise Exception(f"{fs_sub_dir} does not appear to be a valid FreeSurfer directory."
+            raise Exception(
+                f"{fs_sub_dir} does not appear to be a valid FreeSurfer directory."
             )
         # Check hemi(s)
         if hemi == None:
@@ -371,7 +372,9 @@ def extractor(
 
     # 7. Make sure camera angle is valid
     if camera_angle != "saggital" and camera_angle != "axial":
-        raise Exception("Camera angle must be either 'saggital' or 'axial'. '{camera_angle}' was specified.")
+        raise Exception(
+            "Camera angle must be either 'saggital' or 'axial'. '{camera_angle}' was specified."
+        )
 
     ### Prepare output directories ###
     # Add an underscore to separate prefix from file names if a prefix is specified

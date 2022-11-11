@@ -16,7 +16,8 @@ def overwrite_check(file):
     None
     """
     if op.exists(file):
-        raise Exception(f"Output file {file} already exists. Aborting program. Specify --overwrite if you would like to overwrite files."
+        raise Exception(
+            f"Output file {file} already exists. Aborting program. Specify --overwrite if you would like to overwrite files."
         )
 
     return None
@@ -66,7 +67,8 @@ def run_command(cmd_list):
     function_name = cmd_list[0]
     return_code = subprocess.run(cmd_list).returncode
     if return_code != 0:
-        raise Exception(f"Command {function_name} exited with errors. See message above for more information."
+        raise Exception(
+            f"Command {function_name} exited with errors. See message above for more information."
         )
 
     return None
