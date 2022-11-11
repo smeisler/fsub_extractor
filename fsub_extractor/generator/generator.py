@@ -23,6 +23,12 @@ def get_parser():
         "--subject", help="Subject name.", type=str, required=True,
     )
     parser.add_argument(
+        "--fodf",
+        help="Fiber orientation distribution function, input to MRTrix iFOD2 tracking. .mif or .nii.gz file.",
+        type=op.abspath,
+        required=True,
+    )
+    parser.add_argument(
         "--roi1",
         help="Binary ROI that will be used to denote where streamlines begin/end",
         type=op.abspath,
@@ -33,6 +39,49 @@ def get_parser():
         help="Binary ROI that will be used to denote where streamlines begin/end",
         type=op.abspath,
         required=True,
+    )
+    parser.add_argument(
+        "--hemi",
+        help="FreeSurfer hemisphere name(s) corresponding to locations of the ROIs, separated by a comma (no spaces) if different for two ROIs (e.g 'lh,rh'). Required unless --skip-roi-projection is specified.",
+    )
+    parser.add_argument(
+        "--projfrac-params",
+        "--projfrac_params",
+        help="Comma delimited list (no spaces) of projfrac parameters for mri_surf2vol / mri_label2vol. Provided as start,stop,delta. Default is --projfrac-params='-2,0,0.05'. Start must be negative to project into white matter. Used for projecting ROIs into WM.",
+        default="-2,0,0.05",
+        metavar=("START,STOP,DELTA"),
+    )
+    parser.add_argument(
+        "--gmwmi",
+        help="Gray matter white matter interface file (.nii.gz or .mif). If not specified, one will be created based on the FreeSurfer outputs.",
+        type=op.abspath,
+    )
+    parser.add_argument(
+        "--fs-dir",
+        "--fs_dir",
+        help="Path to FreeSurfer directory for the subject. Used to create GMWMI.",
+        type=op.abspath,
+    )
+    parser.add_argument(
+        "--n_streamlines",
+        "--n-streamlines",
+        help="Number of streamlines to produce. Half of this number (rounding up) will be used to seed in each direction (roi1-->roi2 and roi2-->roi1). Default is 5000 streamlines (2500 produced in each direction)",
+        type=int,
+        default=5000,
+    )
+    parser.add_argument(
+        "--skip-roi-projection",
+        "--skip_roi_projection",
+        help="Whether to skip projecting ROI into WM (not recommended unless ROI is already projected). Default is to not skip projection.",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+    )
+    parser.add_argument(
+        "--skip-gmwmi-intersection",
+        "--skip_gmwmi_intersection",
+        help="Whether to skip intersecting ROI with GMWMI (not recommended unless ROI is already intersected). Default is to not skip intersection.",
+        default=False,
+        action=argparse.BooleanOptionalAction,
     )
     parser.add_argument(
         "--out-dir",
@@ -73,8 +122,16 @@ def main():
 
     main = streamline_scalar(
         subject=args.subject,
+        fodf=args.fodf,
         roi1=args.roi2,
         roi2=args.roi2,
+        hemi=args.hemi,
+        projfrac_params=args.projfrac_params,
+        gmwmi=args.gmwmi,
+        fs_dir=args.fs_dir,
+        n_streamlines=args.n_streamlines,
+        skip_roi_projection=args.skip_roi_projection,
+        skip_gmwmi_intersection=args.skip_gmwmi_intersection,
         out_dir=args.out_dir,
         out_prefix=args.out_prefix,
         # scratch=args.scratch,
@@ -84,8 +141,15 @@ def main():
 
 def generator(
     subject,
+    fodf,
     roi1,
     roi2,
+    gmwmi,
+    projfrac_params,
+    fs_dir,
+    n_streamlines,
+    skip_roi_projection,
+    skip_gmwmi_intersection,
     out_dir,
     out_prefix,
     # scratch,
@@ -96,18 +160,57 @@ def generator(
 
     ### Check for assertion errors ###
 
-    # If .trk, use first scalar as reference file for conversion to .tck
-    trk_ref = scalar_path_list[0]
-    print(f"\n Using {trk_ref} as reference anatomy image. \n")
-    if tract[-4:] == ".trk":
-        print("\n Converting .trk to .tck \n")
-        tck_file = trk_to_tck(tract, trk_ref, out_dir, overwrite)
-    else:
-        tck_file = tract
-    # Make sure number of points for tract profile is not negative
-    if n_points < 2:
+    # Make sure input files exists and are the right file types
+    if op.exists(fodf) == False:
+        raise Exception(f"FODF file {fodf} not found on the system.")
+    if fodf[-7:] != ".nii.gz" and fodf[-4:] != ".nii" and fodf[-4:] != ".mif":
+        raise Exception(f"FODF file {fodf} is not a supported file type.")
+    if op.exists(roi1) == False:
+        raise Exception(f"ROI file {roi1} not found on the system.")
+    if roi1[-7:] != ".nii.gz" and roi1[-4:] != ".mgz" and roi1[-6:] != ".label":
+        raise Exception(f"ROI file {roi1} is not a supported file type.")
+    if op.exists(roi2) == False:
+        raise Exception(f"ROI file {roi2} not found on the system.")
+    if roi2[-7:] != ".nii.gz" and roi2[-4:] != ".mgz" and roi2[-6:] != ".label":
+        raise Exception(f"ROI file {roi2} is not a supported file type.")
+    if gmwmi != None and op.exists(gmwmi) == False:
         raise Exception(
-            "Number of points ({n_points}) must be an integer larger than 1."
+            f"GMWMI file {gmwmi} was specified but not found on the system."
+        )
+    if fs_dir != None:
+        fs_sub_dir = op.join(fs_dir, subject)
+        if op.isdir(fs_sub_dir) == False:
+            raise Exception(
+                f"Expected subject FreeSurfer folder {fs_sub_dir} was specified but not found on the system."
+            )
+    if gmwmi == None and fs_dir == None:
+        raise Exception("Please specify either a GMWMI or FreeSurfer directory")
+    # Make sure number of points for tract profile is not negative
+    if n_streamlines < 1:
+        raise Exception(
+            "Number of streamlines ({n_points}) must be a positive integer."
+        )
+    # If odd number of streamlines entered, add 1 to make it even
+    if (n_streamlines % 2) == 1:
+        n_streamlines += 1
+        print("Odd number of streamlines entered, adding 1 to make it even")
+    # Check projfrac-params
+    projfrac_params_list = projfrac_params.split(",")
+    if len(projfrac_params_list) != 3:
+        raise Exception(
+            "Invalid number of projfrac-params specified. --projfrac-params should be provided as start,stop,delta."
+        )
+    elif float(projfrac_params_list[0]) >= 0:
+        raise Exception(
+            "The 'start' paramater of projfrac-params must be negative to project into white matter."
+        )
+    elif float(projfrac_params_list[-1]) <= 0:
+        raise Exception(
+            "The 'delta' paramater of projfrac-params must be positive to iterate correctly."
+        )
+    elif float(projfrac_params_list[1]) <= float(projfrac_params_list[0]):
+        raise Exception(
+            "The 'stop' paramater of projfrac-params must be greater than the 'start' parameter."
         )
     # Check if out and scratch directories exist
     if op.isdir(out_dir) == False:
@@ -129,5 +232,38 @@ def generator(
     subject_base = op.join(out_dir, subject)
     outpath_base = op.join(subject_base, out_prefix)
     # scratch_base = op.join(scratch, subject + "_scratch", out_prefix)
+
+    ### Create GMWMI if it does not exist
+    if gmwmi == None and op.isdir(fs_sub_dir):
+        print("\n Creating GMWMI from FreeSurfer")
+        gmwmi = anat_to_gmwmi(fs_sub_dir, subject_base, overwrite)
+
+    ### Project ROIs
+    if skip_roi_projection == False:
+        print("\n Projecting ROI1 \n")
+        roi1_projected = project_roi(
+            roi_in=roi1,
+            fs_dir=fs_dir,
+            subject=subject,
+            hemi=hemi_list[0],
+            projfrac_params=projfrac_params_list,
+            outpath_base=outpath_base,
+            overwrite=overwrite,
+        )
+    else:
+        print("\n Skipping ROI projection \n")
+        roi1_projected = roi1
+    if skip_gmwmi_intersection == False:
+        print("\n Intersecting ROI1 with GMWMI \n")
+        roi1_intersected = intersect_gmwmi(
+            roi_in=roi1_projected,
+            gmwmi=gmwmi,
+            outpath_base=op.join(
+                out_dir, subject, op.basename(roi1_projected).removesuffix(".nii.gz")
+            ),
+            overwrite=overwrite,
+        )
+    else:
+        roi1_intersected = roi1_projected
 
     print("\n DONE \n")
