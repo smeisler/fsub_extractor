@@ -1,9 +1,9 @@
 import argparse
 import os
 import os.path as op
-from dipy.tracking.streamline import orient_by_rois
+from dipy.tracking.streamline import orient_by_streamline
 from dipy.io.image import load_nifti, load_nifti_data
-from dipy.io.streamline import load_tractogram
+from dipy.io.streamline import load_tractogram, save_tractogram
 from fsub_extractor.utils.utils import (
     run_command,
     overwrite_check,
@@ -70,6 +70,12 @@ def get_parser():
         default=5000,
     )
     parser.add_argument(
+        "--exclude_img",
+        "--exclude-img",
+        help="Path to file (.nii.gz/.mif) to use as exclusion mask for tractography.",
+        type=op.abspath,
+    )
+    parser.add_argument(
         "--skip-roi-projection",
         "--skip_roi_projection",
         help="Whether to skip projecting ROI into WM (not recommended unless ROI is already projected). Default is to not skip projection.",
@@ -130,6 +136,7 @@ def main():
         gmwmi=args.gmwmi,
         fs_dir=args.fs_dir,
         n_streamlines=args.n_streamlines,
+        exclude_img=args.exclude_img,
         skip_roi_projection=args.skip_roi_projection,
         skip_gmwmi_intersection=args.skip_gmwmi_intersection,
         out_dir=args.out_dir,
@@ -148,6 +155,7 @@ def generator(
     projfrac_params,
     fs_dir,
     n_streamlines,
+    exclude_img,
     skip_roi_projection,
     skip_gmwmi_intersection,
     out_dir,
@@ -240,6 +248,12 @@ def generator(
 
     ### Project ROIs
     if skip_roi_projection == False:
+        # Get list of hemispheres
+        hemi_list = hemi.split(",")
+        # If only one hemi is specified, use it for both ROIs
+        if len(hemi_list) == 1:
+            hemi_list.append(hemi_list[0])
+        # Project ROIs
         print("\n Projecting ROI1 \n")
         roi1_projected = project_roi(
             roi_in=roi1,
@@ -250,9 +264,22 @@ def generator(
             outpath_base=outpath_base,
             overwrite=overwrite,
         )
+        print("\n Projecting ROI2 \n")
+        roi2_projected = project_roi(
+            roi_in=roi2,
+            fs_dir=fs_dir,
+            subject=subject,
+            hemi=hemi_list[1],
+            projfrac_params=projfrac_params_list,
+            outpath_base=outpath_base,
+            overwrite=overwrite,
+        )
     else:
         print("\n Skipping ROI projection \n")
         roi1_projected = roi1
+        roi2_projected = roi2
+
+    ### Intersect ROIs with GMWMI
     if skip_gmwmi_intersection == False:
         print("\n Intersecting ROI1 with GMWMI \n")
         roi1_intersected = intersect_gmwmi(
@@ -263,7 +290,96 @@ def generator(
             ),
             overwrite=overwrite,
         )
+        print("\n Intersecting ROI2 with GMWMI \n")
+        roi2_intersected = intersect_gmwmi(
+            roi_in=roi2_projected,
+            gmwmi=gmwmi,
+            outpath_base=op.join(
+                out_dir, subject, op.basename(roi2_projected).removesuffix(".nii.gz")
+            ),
+            overwrite=overwrite,
+        )
     else:
         roi1_intersected = roi1_projected
+        roi2_intersected = roi2_projected
+
+    ### Run Tractography
+    tckgen = find_program("tckgen")
+    tckgen_1_to_2_out = outpath_base + "_tracks_1_to_2.tck"
+    tckgen_2_to_1_out = outpath_base + "_tracks_2_to_1.tck"
+    cmd_tckgen_1_to_2 = [
+        tckgen,
+        fodf,
+        tckgen_1_to_2_out,
+        "-select",
+        n_streamlines / 2,
+        "-act",
+        _5tt_IMAGE,
+        "-backtrack",
+        "-crop_at_gmwmi",
+        "-seed_rejection",
+        roi1_intersected,
+        "-include",
+        roi2_intersected,
+    ]
+    cmd_tckgen_2_to_1 = [
+        tckgen,
+        fodf,
+        tckgen_2_to_1_out,
+        "-select",
+        n_streamlines / 2,
+        "-act",
+        _5tt_IMAGE,
+        "-backtrack",
+        "-crop_at_gmwmi",
+        "-seed_rejection",
+        roi2_intersected,
+        "-include",
+        roi1_intersected,
+    ]
+    if exclude_img != None:
+        cmd_tckgen_1_to_2 += ["-exclude", exclude_img]
+        cmd_tckgen_2_to_1 += ["-exclude", exclude_img]
+
+    ### Combine streamlines into 1 object
+    tckedit = find_program("tckedit")
+    tckedit_out = outpath_base + "_tracks_combined.tck"
+    tckedit_cmd = [
+        tckedit,
+        tckgen_1_to_2_out,
+        tckgen_2_to_1_out,
+        tckedit_out,
+    ]
+    if overwrite == False:
+        overwrite_check(tckgen_1_to_2_out)
+        overwrite_check(tckgen_2_to_1_out)
+        overwrite_check(tckedit_out)
+    else:
+        cmd_tckgen_1_to_2 += ["-force"]
+        cmd_tckgen_2_to_1 += ["-force"]
+        cmd_tckedit += ["-force"]
+
+    ### Run these commands
+    print("\n Running Tractography from ROI1 to ROI2 \n")
+    run_command(cmd_tckgen_1_to_2)
+    print("\n Running Tractography from ROI2 to ROI1 \n")
+    run_command(cmd_tckgen_2_to_1)
+    print("\n Combining Streamlines \n")
+    run_command(cmd_tckedit)
+
+    ### Align all streamline endpoints to the ROI1-->ROI2 direction
+    # Load tractogram, using 5TT as reference image
+    print("\n Aligning Streamlines \n")
+    combined_tck_streamlines = load_tractogram(tckedit_out, _5tt_IMAGE).streamlines
+    dir_1_to_2_tck_streamlines = load_tractogram(
+        tckgen_1_to_2_out, _5tt_IMAGE
+    ).streamlines
+    # Align all streamlines to 1-->2 direction
+    tck_streamlines_oriented = orient_by_streamline(
+        trk_streamlines, dir_1_to_2_tck_streamlines[0]
+    )
+    # Save streamlines out
+    oriented_streamlines_out = outpath_base + "_tracks_combined_oriented.tck"
+    save_tractogram(tck_streamlines_oriented, oriented_streamlines_out)
 
     print("\n DONE \n")
