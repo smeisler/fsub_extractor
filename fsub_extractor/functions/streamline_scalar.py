@@ -1,4 +1,3 @@
-import argparse
 import os
 import os.path as op
 import pandas as pd
@@ -8,12 +7,12 @@ from dipy.tracking.streamline import orient_by_rois
 import dipy.stats.analysis as dsa
 from dipy.io.image import load_nifti, load_nifti_data
 from dipy.io.streamline import load_tractogram
-from fsub_extractor.utils.utils import (
+from fsub_extractor.utils.system_utils import (
     run_command,
     overwrite_check,
-    trk_to_tck,
     find_program,
 )
+from fsub_extractor.utils.streamline_utils import trk_to_tck
 
 # Add input arguments
 def get_parser():
@@ -22,7 +21,10 @@ def get_parser():
         description="Extracts tract-average and along-the-tract measures of input scalar metrics (.nii.gz) for a specified streamline file (.tck/.trk)."
     )
     parser.add_argument(
-        "--subject", help="Subject name.", type=str, required=True,
+        "--subject",
+        help="Subject name.",
+        type=str,
+        required=True,
     )
     parser.add_argument(
         "--tract",
