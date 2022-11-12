@@ -19,7 +19,7 @@ def anat_to_gmwmi(anat, outdir, overwrite=True):
 
     Outputs
     =======
-    Function returns path to binarized GMWMI output image.
+    Function returns paths to 5tt, gmwmi, and binarized gmwmi
     outdir + 5tt.nii.gz is the 5TT segmented anatomical image
     outdir + gmwmi.nii.gz is the GMWMI image
     outdir + gmwmi_bin.nii.gz is the binarized GMWMI image
@@ -76,6 +76,26 @@ def anat_to_gmwmi(anat, outdir, overwrite=True):
 
 
 def binarize_image(img, outfile, threshold=0, comparison="gt", overwrite=True):
+    """Binarizes an image at a given threshold (wrapper around mrthreshold)
+
+    Parameters
+    ==========
+    img: str
+            Path to image to binarize
+    outfile: str
+            Output path for binarized img
+    threshold: number
+            Threshold to use for binarizing
+    comparison: string
+            'mrthreshold' comparison option for thresholding. Default is 'gt' / greater than.
+    overwrite: bool
+            Whether to allow overwriting outputs
+
+    Outputs
+    =======
+    Function returns path to binarized image
+    outfile is the binarized image
+    """
     mrthreshold = find_program("mrthreshold")
     cmd_mrthreshold = [
         mrthreshold,
@@ -95,6 +115,3 @@ def binarize_image(img, outfile, threshold=0, comparison="gt", overwrite=True):
     run_command(cmd_mrthreshold)
 
     return outfile
-
-
-# TODO: def invert_mask

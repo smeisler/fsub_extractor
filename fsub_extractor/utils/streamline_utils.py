@@ -1,9 +1,10 @@
 import os.path as op
 import os
+from dipy.io.streamline import load_tractogram, save_tractogram
 from fsub_extractor.utils.system_utils import *
 
 
-def trk_to_tck(trk_file, ref, out_dir, overwrite):
+def trk_to_tck(trk_file, ref, out_dir, overwrite=True):
     """Converts a .trk file to .tck using DIPY
     Parameters
     ==========
@@ -35,12 +36,12 @@ def extract_tck_mrtrix(
     tck_file,
     rois_in,
     outpath_base,
-    search_dist,
-    search_type,
     two_rois,
-    overwrite,
+    search_dist=4.0,
+    search_type="forward",
+    overwrite=True,
     sift2_weights=None,
-    tract_mask=None,
+    exclude_mask=None,
 ):
     """Uses MRtrix tools to extract the TCK file that connects to the ROI(s)
     If the ROI image contains one value, finds all streamlines that connect to that region
@@ -127,13 +128,13 @@ def extract_tck_mrtrix(
     run_command(cmd_connectome2tck)
 
     # Mask streamlines if requested
-    if tract_mask != None:
+    if exclude_mask != None:
         tckedit_out = outpath_base + "extracted_masked.tck"
         tckedit = find_program("tckedit")
         cmd_tckedit = [
             tckedit,
             "-exclude",
-            tract_mask,
+            exclude_mask,
             connectome2tck_out,
             tckedit_out,
         ]

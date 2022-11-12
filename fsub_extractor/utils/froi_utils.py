@@ -4,7 +4,13 @@ from fsub_extractor.utils.system_utils import *
 
 
 def project_roi(
-    roi_in, fs_dir, subject, hemi, projfrac_params, outpath_base, overwrite
+    roi_in,
+    fs_dir,
+    subject,
+    hemi,
+    outpath_base,
+    projfrac_params=[-2, 0, 0.05],
+    overwrite=True,
 ):
     """Projects input ROI into the white matter. If volumetric ROI is input, starts by mapping it to the surface.
 
@@ -116,7 +122,7 @@ def project_roi(
 
 
 def intersect_gmwmi(
-    roi_in, gmwmi, outpath_base, overwrite
+    roi_in, gmwmi, outpath_base, overwrite=True
 ):  # TODO: Fix so that it is meant to run on individual ROIs, not combined
     """Intersects an input ROI file with the GMWMI
 
@@ -157,7 +163,7 @@ def intersect_gmwmi(
     return mrcalc_out
 
 
-def merge_rois(roi1, roi2, out_file, overwrite):  # TODO: REFACTOR THIS
+def merge_rois(roi1, roi2, out_file, overwrite=True):  # TODO: REFACTOR THIS
     """Creates the input ROI atlas-like file to be passed into tck2connectome.
         Multiplies the second ROI file passed by 2, and merges this file with the first file.
         Returns the merged file

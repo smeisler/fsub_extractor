@@ -86,9 +86,9 @@ def get_parser():
         type=op.abspath,
     )
     parser.add_argument(
-        "--tract-mask",
-        "--tract_mask",
-        help="Path to inclusion mask (.nii.gz or .mif). If specified, streamlines exiting this mask will be excluded.",
+        "--exclude-mask",
+        "--exclude_mask",
+        help="Path to exclusion mask (.nii.gz or .mif). If specified, streamlines that enter this mask will be discarded.",
         type=op.abspath,
     )
     parser.add_argument(
@@ -231,7 +231,7 @@ def main():
         search_type=str(args.search_type),
         projfrac_params=args.projfrac_params,
         sift2_weights=args.sift2_weights,
-        tract_mask=args.tract_mask,
+        exclude_mask=args.exclude_mask,
         out_dir=args.out_dir,
         out_prefix=args.out_prefix,
         overwrite=args.overwrite,

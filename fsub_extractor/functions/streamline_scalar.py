@@ -62,11 +62,9 @@ def streamline_scalar(
         raise Exception(
             "Number of points ({n_points}) must be an integer larger than 1."
         )
-    # Check if out and scratch directories exist
+    # Check if output directories exist
     if op.isdir(out_dir) == False:
         raise Exception(f"Output directory {out_dir} not found on the system.")
-    # if op.isdir(scratch) == False:
-    #    raise Exception(f"Scratch directory {scratch} not found on the system.")
 
     ### Prepare output directories ###
     # Add an underscore to separate prefix from file names if a prefix is specified

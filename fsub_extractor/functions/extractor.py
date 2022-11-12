@@ -1,6 +1,5 @@
 import os.path as op
 import warnings
-from dask import delayed
 from fsub_extractor.utils.anat_utils import *
 from fsub_extractor.utils.system_utils import *
 from fsub_extractor.utils.froi_utils import *
@@ -21,7 +20,7 @@ def extractor(
     search_type,
     projfrac_params,
     sift2_weights,
-    tract_mask,
+    exclude_mask,
     out_dir,
     out_prefix,
     overwrite,
@@ -173,8 +172,8 @@ def extractor(
             fs_dir=fs_dir,
             subject=subject,
             hemi=hemi_list[0],
-            projfrac_params=projfrac_params_list,
             outpath_base=func_out_base,
+            projfrac_params=projfrac_params_list,
             overwrite=overwrite,
         )
     else:
@@ -198,17 +197,18 @@ def extractor(
         roi2_intersected = None
     else:
         if skip_roi_projection == False:
-            print("\n Projecting ROI2 \n")
+            print("\n Projecting ROI2 into white matter \n")
             roi2_projected = project_roi(
                 roi_in=roi2,
                 fs_dir=fs_dir,
                 subject=subject,
                 hemi=hemi_list[-1],
-                projfrac_params=projfrac_params_list,
                 outpath_base=func_out_base,
+                projfrac_params=projfrac_params_list,
                 overwrite=overwrite,
             )
         else:
+            print("\n Skipping ROI2 projection \n")
             roi2_projected = roi2
         if skip_gmwmi_intersection == False:
             print("\n Intersecting ROI2 with GMWMI \n")
@@ -233,7 +233,7 @@ def extractor(
     ### Convert .trk to .tck if needed ###
     if tract[-4:] == ".trk":
         print("\n Converting .trk to .tck \n")
-        tck_file = trk_to_tck(tract, gmwmi, dwi_out_dir, overwrite)
+        tck_file = trk_to_tck(tract, gmwmi, dwi_out_dir, overwrite=overwrite)
     else:
         tck_file = tract
 
@@ -243,12 +243,12 @@ def extractor(
         tck_file,
         rois_in,
         dwi_out_base,
-        search_dist,
-        search_type,
         two_rois,
-        overwrite,
+        search_dist=search_dist,
+        search_type=search_type,
+        overwrite=overwrite,
         sift2_weights=sift2_weights,
-        tract_mask=tract_mask,
+        exclude_mask=exclude_mask,
     )
     print("\n The extracted tract is located at " + extracted_tck + ".\n")
 
@@ -278,47 +278,25 @@ def extractor(
                 ","
             )  # TODO: redundant to define twice, already defined above if not skip projection
 
-        if camera_angle == "saggital":
-            for hemi_to_viz in hemi_list:
-                visualize_sub_bundles(
-                    orig_bundle=tract,
-                    fsub_bundle=extracted_tck,
-                    ref_anat=ref_anat,
-                    outpath_base=dwi_out_base + hemi_to_viz + "_",
-                    roi1=roi1_intersected,
-                    roi2=roi2_intersected,
-                    orig_color=orig_color_list,
-                    fsub_color=fsub_color_list,
-                    roi1_color=roi1_color_list,
-                    roi2_color=roi2_color_list,
-                    roi_opacity=roi_opacity,
-                    fsub_linewidth=fsub_linewidth,
-                    interactive=interactive_viz,
-                    show_anat=show_anat,
-                    axial_offset=axial_offset,
-                    saggital_offset=saggital_offset,
-                    camera_angle=camera_angle,
-                    hemi=hemi_to_viz,
-                )
-        else:
-            visualize_sub_bundles(
-                orig_bundle=tract,
-                fsub_bundle=extracted_tck,
-                ref_anat=ref_anat,
-                outpath_base=outpath_base + camera_angle + "_",
-                roi1=roi1_intersected,
-                roi2=roi2_intersected,
-                orig_color=orig_color_list,
-                fsub_color=fsub_color_list,
-                roi1_color=roi1_color_list,
-                roi2_color=roi2_color_list,
-                roi_opacity=roi_opacity,
-                fsub_linewidth=fsub_linewidth,
-                interactive=interactive_viz,
-                show_anat=show_anat,
-                axial_offset=axial_offset,
-                saggital_offset=saggital_offset,
-                camera_angle=camera_angle,
-            )
+        visualize_sub_bundles(
+            orig_bundle=tract,
+            fsub_bundle=extracted_tck,
+            ref_anat=ref_anat,
+            outpath_base=dwi_out_base + hemi_to_viz + "_",
+            roi1=roi1_intersected,
+            roi2=roi2_intersected,
+            orig_color=orig_color_list,
+            fsub_color=fsub_color_list,
+            roi1_color=roi1_color_list,
+            roi2_color=roi2_color_list,
+            roi_opacity=roi_opacity,
+            fsub_linewidth=fsub_linewidth,
+            interactive=interactive_viz,
+            show_anat=show_anat,
+            axial_offset=axial_offset,
+            saggital_offset=saggital_offset,
+            camera_angle=camera_angle,
+            hemi=hemi_list[0],
+        )
 
     print("\n DONE \n")
