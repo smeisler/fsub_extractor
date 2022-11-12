@@ -246,9 +246,9 @@ def extractor(
         two_rois,
         search_dist=search_dist,
         search_type=search_type,
-        overwrite=overwrite,
         sift2_weights=sift2_weights,
         exclude_mask=exclude_mask,
+        overwrite=overwrite,
     )
     print("\n The extracted tract is located at " + extracted_tck + ".\n")
 

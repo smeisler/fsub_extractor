@@ -39,9 +39,9 @@ def extract_tck_mrtrix(
     two_rois,
     search_dist=4.0,
     search_type="forward",
-    overwrite=True,
     sift2_weights=None,
     exclude_mask=None,
+    overwrite=True,
 ):
     """Uses MRtrix tools to extract the TCK file that connects to the ROI(s)
     If the ROI image contains one value, finds all streamlines that connect to that region
@@ -61,6 +61,10 @@ def extract_tck_mrtrix(
             Method of searching for streamlines (forward, reverse, or radial).
     two_rois: bool
             True if two ROIs in rois_in, False, if one ROI in rois_in
+    sift2_weights: str
+            Path to SIFT2 weights CSV file
+    exclude_mask: str
+            Path to streamline exclusion mask (.nii.gz). Streamlines leaving this mask will be discarded
     overwrite: bool
             Whether to allow overwriting outputs
 
@@ -68,7 +72,9 @@ def extract_tck_mrtrix(
     =======
     Function returns the path of the extracted tck file
     outpath_base + assignments.txt/connectome.txt describe the streamline-to-node assignments
-    outpath_base + extracted.txt is the extracted sub-bundle
+    outpath_base + extracted.tck is the extracted sub-bundle
+    outpath_base + extracted_masked.tck is the extracted bundle after applying exclusion masking (if masking is done)
+    *_weights.csv files are the SIFT2 weights for the extracted and masked bundles
     """
 
     ### tck2connectome
@@ -150,7 +156,6 @@ def extract_tck_mrtrix(
                 "-tck_weights_out",
                 sift2_weights_edited,
             ]
-        # TODO: CHANGE MASK TO EXCLUDE
         run_command(cmd_tckedit)
 
         return tckedit_out

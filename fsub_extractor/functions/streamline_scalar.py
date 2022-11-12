@@ -54,7 +54,7 @@ def streamline_scalar(
     print(f"\n Using {trk_ref} as reference anatomy image. \n")
     if tract[-4:] == ".trk":
         print("\n Converting .trk to .tck \n")
-        tck_file = trk_to_tck(tract, trk_ref, out_dir, overwrite)
+        tck_file = trk_to_tck(tract, trk_ref, out_dir, overwrite=overwrite)
     else:
         tck_file = tract
     # Make sure number of points for tract profile is not negative
