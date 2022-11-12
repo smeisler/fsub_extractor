@@ -95,3 +95,6 @@ def binarize_image(img, outfile, threshold=0, comparison="gt", overwrite=True):
     run_command(cmd_mrthreshold)
 
     return outfile
+
+
+# TODO: def invert_mask

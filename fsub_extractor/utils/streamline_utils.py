@@ -32,7 +32,15 @@ def trk_to_tck(trk_file, ref, out_dir, overwrite):
 
 
 def extract_tck_mrtrix(
-    tck_file, rois_in, outpath_base, search_dist, search_type, two_rois, overwrite
+    tck_file,
+    rois_in,
+    outpath_base,
+    search_dist,
+    search_type,
+    two_rois,
+    overwrite,
+    sift2_weights=None,
+    tract_mask=None,
 ):
     """Uses MRtrix tools to extract the TCK file that connects to the ROI(s)
     If the ROI image contains one value, finds all streamlines that connect to that region
@@ -81,6 +89,8 @@ def extract_tck_mrtrix(
         overwrite_check(tck2connectome_connectome_out)
     else:
         cmd_tck2connectome += ["-force"]
+    if sift2_weights != None:
+        cmd_tck2connectome += ["-tck_weights_in", sift2_weights]
     run_command(cmd_tck2connectome)
 
     ### connectome2tck
@@ -106,6 +116,42 @@ def extract_tck_mrtrix(
         overwrite_check(connectome2tck_out)
     else:
         cmd_connectome2tck += ["-force"]
+    if sift2_weights != None:
+        sift2_weights_extracted = outpath_base + "extracted_weights"
+        cmd_connectome2tck += [
+            "-tck_weights_in",
+            sift2_weights,
+            "-prefix_tck_weights_out",
+            sift2_weights_extracted,
+        ]
     run_command(cmd_connectome2tck)
 
-    return connectome2tck_out
+    # Mask streamlines if requested
+    if tract_mask != None:
+        tckedit_out = outpath_base + "extracted_masked.tck"
+        tckedit = find_program("tckedit")
+        cmd_tckedit = [
+            tckedit,
+            "-exclude",
+            tract_mask,
+            connectome2tck_out,
+            tckedit_out,
+        ]
+        if overwrite == False:
+            overwrite_check(tckedit_out)
+        else:
+            cmd_tckedit += ["-force"]
+        if sift2_weights != None:
+            sift2_weights_edited = outpath_base + "extracted_masked_weights.csv"
+            cmd_tckedit += [
+                "-tck_weights_in",
+                sift2_weights_extracted + ".csv",
+                "-tck_weights_out",
+                sift2_weights_edited,
+            ]
+        # TODO: CHANGE MASK TO EXCLUDE
+        run_command(cmd_tckedit)
+
+        return tckedit_out
+    else:
+        return connectome2tck_out

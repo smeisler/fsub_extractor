@@ -80,6 +80,18 @@ def get_parser():
         metavar=("START,STOP,DELTA"),
     )
     parser.add_argument(
+        "--sift2-weights",
+        "--sift2_weights",
+        help="Path to SIFT2 weights file. If supplied, the sum of weights will be output with streamline extraction.",
+        type=op.abspath,
+    )
+    parser.add_argument(
+        "--tract-mask",
+        "--tract_mask",
+        help="Path to inclusion mask (.nii.gz or .mif). If specified, streamlines exiting this mask will be excluded.",
+        type=op.abspath,
+    )
+    parser.add_argument(
         "--out-dir",
         "--out_dir",
         help="Directory where outputs will be stored (a subject-folder will be created there if it does not exist).",
@@ -218,6 +230,8 @@ def main():
         search_dist=str(args.search_dist),
         search_type=str(args.search_type),
         projfrac_params=args.projfrac_params,
+        sift2_weights=args.sift2_weights,
+        tract_mask=args.tract_mask,
         out_dir=args.out_dir,
         out_prefix=args.out_prefix,
         overwrite=args.overwrite,

@@ -20,6 +20,8 @@ def extractor(
     search_dist,
     search_type,
     projfrac_params,
+    sift2_weights,
+    tract_mask,
     out_dir,
     out_prefix,
     overwrite,
@@ -154,6 +156,8 @@ def extractor(
         (fivett, gmwmi, gmwmi_bin) = anat_to_gmwmi(
             fs_sub_dir, anat_out_dir, overwrite=overwrite
         )
+    else:
+        gmwmi_bin = gmwmi
 
     ### Set flag for whether two rois were passed in ###
     if roi2 != None:
@@ -236,7 +240,15 @@ def extractor(
     ### Run MRtrix Tract Extraction ###
     print("\n Extracing the sub-bundle \n")
     extracted_tck = extract_tck_mrtrix(
-        tck_file, rois_in, dwi_out_base, search_dist, search_type, two_rois, overwrite
+        tck_file,
+        rois_in,
+        dwi_out_base,
+        search_dist,
+        search_type,
+        two_rois,
+        overwrite,
+        sift2_weights=sift2_weights,
+        tract_mask=tract_mask,
     )
     print("\n The extracted tract is located at " + extracted_tck + ".\n")
 
