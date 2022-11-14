@@ -287,15 +287,18 @@ def visualize_bundles(
     """
     
     figure = window.Scene()
-        
-    for t in range(len(streamline_actor)):
-        figure.add(streamline_actor[t])
-        
-    for r in range(len(roi_actor)):
-        figure.add(roi_actor[r])
-        
-    for s in range(len(slice_actor)):
-        figure.add(slice_actor[s])
+    
+    if streamline_actor is not None:     
+        for t in range(len(streamline_actor)):
+            figure.add(streamline_actor[t])
+    
+    if roi_actor is not None:    
+        for r in range(len(roi_actor)):
+            figure.add(roi_actor[r])
+    
+    if slice_actor is not None:     
+        for s in range(len(slice_actor)):
+            figure.add(slice_actor[s])
  
     cam = figure.GetActiveCamera()
     cam.SetViewUp(0, 0, 0)
@@ -311,6 +314,6 @@ def visualize_bundles(
     if interactive:
         window.show(figure)
     else:
-        window.record(figure, outpath = filename, size=(1200, 900)) 
+        window.record(figure, out_path = filename, size=(1200, 900)) 
 
 
