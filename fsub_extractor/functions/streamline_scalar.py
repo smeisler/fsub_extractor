@@ -1,4 +1,3 @@
-import argparse
 import os
 import os.path as op
 import pandas as pd
@@ -8,111 +7,12 @@ from dipy.tracking.streamline import orient_by_rois
 import dipy.stats.analysis as dsa
 from dipy.io.image import load_nifti, load_nifti_data
 from dipy.io.streamline import load_tractogram
-from fsub_extractor.utils.utils import (
+from fsub_extractor.utils.system_utils import (
     run_command,
     overwrite_check,
-    trk_to_tck,
     find_program,
 )
-
-# Add input arguments
-def get_parser():
-
-    parser = argparse.ArgumentParser(
-        description="Extracts tract-average and along-the-tract measures of input scalar metrics (.nii.gz) for a specified streamline file (.tck/.trk)."
-    )
-    parser.add_argument(
-        "--subject", help="Subject name.", type=str, required=True,
-    )
-    parser.add_argument(
-        "--tract",
-        help="Path to tract file (.tck or .trk). Should be in the same space as the scalar map inputs.",
-        type=op.abspath,
-        required=True,
-    )
-    parser.add_argument(
-        "--scalar_paths",
-        "--scalar-paths",
-        help="Comma delimited list (no spaces) of path(s) to scalar maps (e.g. /path/to/FA.nii.gz). This will also be used as a spatial reference file is a .trk file is passed in as a streamlines object.",
-        required=True,
-    )
-    parser.add_argument(
-        "--scalar_names",
-        "--scalar-names",
-        help="Comma delimited list (no spaces) of names to scalar maps (e.g. Fractional_Anisotropy). The number of names must match the number of scalar paths",
-        required=True,
-    )
-    # parser.add_argument(
-    #    "--roi_begin",
-    #    "--roi-begin",
-    #    help="Binary ROI that will be used to denote where streamlines begin (lower number nodes on tract profiles)",
-    #    type=op.abspath,
-    # required=True,
-    # )
-    # parser.add_argument(
-    #    "--roi_end",
-    #    "--roi-end",
-    #    help="Binary ROI that will be used to denote where streamlines end (higher number nodes on tract profiles)",
-    #    type=op.abspath,
-    # required=True,
-    # )
-    parser.add_argument(
-        "--n_points",
-        "--n-points",
-        help="Number of nodes to use in tract profile (default is 100)",
-        type=int,
-        default=100,
-    )
-    parser.add_argument(
-        "--out-dir",
-        "--out_dir",
-        help="Directory where outputs will be stored (a subject-folder will be created there if it does not exist).",
-        type=op.abspath,
-        default=os.getcwd(),
-    )
-    parser.add_argument(
-        "--out-prefix",
-        "--out_prefix",
-        help="Prefix for all output files. Default is no prefix.",
-        type=str,
-        default="",
-    )
-    # parser.add_argument(
-    #    "--scratch",
-    #    "--scratch",
-    #    help="Path to scratch directory. Default is current directory.",
-    #    type=op.abspath,
-    #    default=os.getcwd(),
-    # )
-    parser.add_argument(
-        "--overwrite",
-        help="Whether to overwrite outputs. Default is to overwrite.",
-        default=True,
-        action=argparse.BooleanOptionalAction,
-    )
-
-    return parser
-
-
-def main():
-
-    # Parse arguments and run the main code
-    parser = get_parser()
-    args = parser.parse_args()
-
-    main = streamline_scalar(
-        subject=args.subject,
-        tract=args.tract,
-        # roi_begin=args.roi_begin,
-        # roi_end=args.roi_end,
-        scalar_paths=args.scalar_paths,
-        scalar_names=args.scalar_names,
-        n_points=args.n_points,
-        out_dir=args.out_dir,
-        out_prefix=args.out_prefix,
-        # scratch=args.scratch,
-        overwrite=args.overwrite,
-    )
+from fsub_extractor.utils.streamline_utils import trk_to_tck
 
 
 def streamline_scalar(
@@ -125,7 +25,6 @@ def streamline_scalar(
     n_points,
     out_dir,
     out_prefix,
-    # scratch,
     overwrite,
 ):
 
@@ -155,7 +54,7 @@ def streamline_scalar(
     print(f"\n Using {trk_ref} as reference anatomy image. \n")
     if tract[-4:] == ".trk":
         print("\n Converting .trk to .tck \n")
-        tck_file = trk_to_tck(tract, trk_ref, out_dir, overwrite)
+        tck_file = trk_to_tck(tract, trk_ref, out_dir, overwrite=overwrite)
     else:
         tck_file = tract
     # Make sure number of points for tract profile is not negative
@@ -163,11 +62,9 @@ def streamline_scalar(
         raise Exception(
             "Number of points ({n_points}) must be an integer larger than 1."
         )
-    # Check if out and scratch directories exist
+    # Check if output directories exist
     if op.isdir(out_dir) == False:
         raise Exception(f"Output directory {out_dir} not found on the system.")
-    # if op.isdir(scratch) == False:
-    #    raise Exception(f"Scratch directory {scratch} not found on the system.")
 
     ### Prepare output directories ###
     # Add an underscore to separate prefix from file names if a prefix is specified
@@ -175,14 +72,16 @@ def streamline_scalar(
         if out_prefix[-1] != "_":
             out_prefix += "_"
 
-    # Make subject output and scratch folders if they do not exist, and define the naming convention
-    if op.isdir(op.join(out_dir, subject)) == False:
-        os.mkdir(op.join(out_dir, subject))
-    # if op.isdir(op.join(scratch, subject + "_scratch")) == False:
-    #    os.mkdir(op.join(scratch, subject + "_scratch"))
-    subject_base = op.join(out_dir, subject)
-    outpath_base = op.join(subject_base, out_prefix)
-    # scratch_base = op.join(scratch, subject + "_scratch", out_prefix)
+    # Make output folders if they do not exist, and define the naming convention
+    anat_out_dir = op.join(out_dir, subject, "anat")
+    dwi_out_dir = op.join(out_dir, subject, "dwi")
+    func_out_dir = op.join(out_dir, subject, "func")
+    os.makedirs(anat_out_dir, exist_ok=True)
+    os.makedirs(dwi_out_dir, exist_ok=True)
+    os.makedirs(func_out_dir, exist_ok=True)
+    anat_out_base = op.join(anat_out_dir, out_prefix)
+    dwi_out_base = op.join(dwi_out_dir, out_prefix)
+    func_out_base = op.join(func_out_dir, out_prefix)
 
     ### Reorient streamlines so beginning of each streamline are at the same end
     tract_loaded = load_tractogram(tract, trk_ref).streamlines
@@ -219,17 +118,16 @@ def streamline_scalar(
         plt.plot(profile_bundle)
         plt.ylabel(scalar_name)
         plt.xlabel("Node along Bundle")
-        profile_fig_outfile = op.join(subject_base, scalar_name + "_profile.png")
+        profile_fig_outfile = dwi_out_base + scalar_name + "_profile.png"
         if overwrite == False:
             overwrite_check(profile_fig_outfile)
         plt.savefig(profile_fig_outfile)
-        # TODO: SAVE OUT CSV AND PLOT
 
         ### Calculate tract average scalar
         # Start by finding average per streamline with 'tcksample'
         print(f"\n Calculating tract-average summary stats for {scalar_name} \n")
         tcksample = find_program("tcksample")
-        tcksample_out = op.join(subject_base, scalar_name + "_streamline_means.csv")
+        tcksample_out = dwi_out_base + scalar_name + "_streamline_means.csv"
 
         cmd_tcksample = [
             tcksample,
@@ -256,7 +154,7 @@ def streamline_scalar(
         tract_med = np.median(streamline_avgs_num)
         n_streamlines = len(streamline_avgs_num)
         # Write summary stats to outfile
-        stats_outfile = op.join(subject_base, scalar_name + "_stats.txt")
+        stats_outfile = dwi_out_base + scalar_name + "_stats.txt"
         if overwrite == False:
             overwrite_check(stats_outfile)
         stats_outfile_object = open(stats_outfile, "w")
