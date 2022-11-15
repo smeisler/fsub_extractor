@@ -136,6 +136,7 @@ def streamline_scalar(
             tcksample_out,
             "-stat_tck",
             "mean",
+            "-precise",
         ]
         if overwrite == False:
             overwrite_check(tcksample_out)
