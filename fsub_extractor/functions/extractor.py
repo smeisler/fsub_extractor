@@ -282,7 +282,7 @@ def extractor(
             orig_bundle=tract,
             fsub_bundle=extracted_tck,
             ref_anat=ref_anat,
-            outpath_base=dwi_out_base + hemi_to_viz + "_",
+            outpath_base=dwi_out_base + hemi_list[0] + "_",
             roi1=roi1_intersected,
             roi2=roi2_intersected,
             orig_color=orig_color_list,
