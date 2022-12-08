@@ -279,15 +279,15 @@ def visualize_bundles(
 
     figure = window.Scene()
 
-    if streamline_actor is not None:     
+    if streamline_actor is not None:
         for t in range(len(streamline_actor)):
             figure.add(streamline_actor[t])
 
-    if roi_actor is not None:    
+    if roi_actor is not None:
         for r in range(len(roi_actor)):
             figure.add(roi_actor[r])
 
-    if slice_actor is not None:     
+    if slice_actor is not None:
         for s in range(len(slice_actor)):
             figure.add(slice_actor[s])
 
