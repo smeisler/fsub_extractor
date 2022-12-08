@@ -128,7 +128,7 @@ def extractor(
     # 5. Make sure camera angle is valid
     if camera_angle != "saggital" and camera_angle != "axial":
         raise Exception(
-            "Camera angle must be either 'saggital' or 'axial'. '{camera_angle}' was specified."
+            f"Camera angle must be either 'saggital' or 'axial'. {camera_angle} was specified."
         )
 
     # 6. Make sure FS license is valid [TODO: HOW??]
