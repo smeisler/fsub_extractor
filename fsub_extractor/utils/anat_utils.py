@@ -3,7 +3,7 @@ import os
 from fsub_extractor.utils.system_utils import *
 
 
-def anat_to_gmwmi(anat, outdir, overwrite=True):
+def anat_to_gmwmi(anat, outdir, threshold=0, overwrite=True):
     """Creates a gray-matter-white-matter-interface (GMWMI) from a T1 or FreeSurfer image
     If a T1 image is passed (not recommended), uses FSL FAST to create 5TT and GMWMI
     If a FreeSurfer directory is passed in, uses the surface reconstruction to create 5TT and GMWMI
@@ -66,10 +66,10 @@ def anat_to_gmwmi(anat, outdir, overwrite=True):
     run_command(cmd_5tt2gmwmi)
 
     # Run mrthreshold to binarize the GMWMI
-    print("\n Binarizing GMWMI \n")
+    print(f"\n Binarizing GMWMI at threshold of {threshold} \n")
     binarized_gmwmi_out = op.join(outdir, "gmwmi.nii.gz")
     binarized_gmwmi = binarize_image(
-        fivett2gmwmi_out, binarized_gmwmi_out, overwrite=overwrite
+        fivett2gmwmi_out, binarized_gmwmi_out, threshold=threshold, overwrite=overwrite
     )
 
     return fivettgen_out, fivett2gmwmi_out, binarized_gmwmi

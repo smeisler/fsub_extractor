@@ -10,9 +10,7 @@ def get_parser():
         description="Extracts tract-average and along-the-tract measures of input scalar metrics (.nii.gz) for a specified streamline file (.tck/.trk)."
     )
     parser.add_argument(
-        "--subject",
-        help="Subject name.",
-        required=True,
+        "--subject", help="Subject name.", required=True,
     )
     parser.add_argument(
         "--tract",
