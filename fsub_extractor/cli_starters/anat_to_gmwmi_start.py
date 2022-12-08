@@ -64,4 +64,6 @@ def main():
         print(f"\n Using {anat_path} as FreeSurfer input for GMWMI creation \n")
     elif anat_path[-7:] == ".nii.gz":
         print(f"\n Using {anat_path} as T1 input for GMWMI creation \n")
+
+    # Run function
     main = anat_to_gmwmi(anat_path, anat_out_dir, overwrite=overwrite)
