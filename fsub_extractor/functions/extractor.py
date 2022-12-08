@@ -117,6 +117,8 @@ def extractor(
         raise Exception(
             "GMWMI cannot be created unless a FreeSurfer directory is passed into --fs-dir."
         )
+    elif gmwmi == None and op.exists(op.join(out_dir, subject, "anat","gmwmi.nii.gz")):
+        gmwmi = op.join(out_dir,subject,"anat","gmwmi.nii.gz")
     elif gmwmi != None and op.exists(gmwmi) == False:
         warnings.warn(
             "GMWMI was specified but not found on the system. A new one will be created from the FreeSurfer input."
@@ -126,7 +128,7 @@ def extractor(
     # 5. Make sure camera angle is valid
     if camera_angle != "saggital" and camera_angle != "axial":
         raise Exception(
-            f"Camera angle must be either 'saggital' or 'axial'. '{camera_angle}' was specified."
+            "Camera angle must be either 'saggital' or 'axial'. '{camera_angle}' was specified."
         )
 
     # 6. Make sure FS license is valid [TODO: HOW??]
