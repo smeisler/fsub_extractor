@@ -4,7 +4,7 @@ from dipy.io.streamline import load_tractogram, save_tractogram
 from fsub_extractor.utils.system_utils import *
 
 
-def trk_to_tck(trk_file, ref, out_dir, overwrite=True):
+def trk_to_tck(trk_file, ref, out_dir=os.getcwd(), overwrite=True):
     """Converts a .trk file to .tck using DIPY
     Parameters
     ==========
@@ -23,6 +23,7 @@ def trk_to_tck(trk_file, ref, out_dir, overwrite=True):
             Path to output .tck file
     """
     from dipy.io.streamline import load_tractogram, save_tractogram
+    import nibabel.filebasedimages
 
     trk_loaded = load_tractogram(trk_file, ref)
     filename = op.basename(trk_file).replace(".trk", ".tck")
