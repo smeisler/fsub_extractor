@@ -1,8 +1,6 @@
 import os.path as op
 import os
-from dipy.io.streamline import load_tractogram, save_tractogram
 from fsub_extractor.utils.system_utils import *
-
 
 def trk_to_tck(trk_file, ref, out_dir=os.getcwd(), overwrite=True):
     """Converts a .trk file to .tck using DIPY
