@@ -1,7 +1,7 @@
 # _fsub-extractor_
 This is an application for extracing **F**unctional **Su**bcomponents of **B**undles. This software can take gray matter regions, project them into white matter, intersect them with the gray-matter-white-matter-interface (GMWMI), and find streamlines that connect to these intersected region. It will also produce a visualization of the streamlines, and can sample scalar values along the extracted streamlines (tract profile or average across all streamlines).
 
-This softwware was conceived of and developed during NeuroHackademy 2022.
+This software was conceived of and developed during NeuroHackademy 2022.
 
 ## Install from GitHub
 ```
