@@ -185,7 +185,7 @@ def define_streamline_actor(tck, reference_anatomy, color):
     return streamlines_actor
 
 
-def define_roi_actor(roi_path, color, opacity=0, roi_val=1):
+def define_roi_actor(roi_path, color, opacity=1, roi_val=1):
     """Takes in roi file and outputs a fury roi actor.
     Parameters
     ==========
