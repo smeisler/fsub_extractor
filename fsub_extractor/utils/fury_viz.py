@@ -150,7 +150,7 @@ def visualize_sub_bundles(
 
     window.record(
         figure, out_path=(outpath_base + "visualization.png"), size=(1200, 900)
-    )  # TODO: make better file output name
+    )
 
 
 def define_streamline_actor(tck, reference_anatomy, color):

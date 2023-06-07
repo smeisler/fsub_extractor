@@ -332,10 +332,10 @@ def extractor(
             )  # TODO: redundant to define twice, already defined above if not skip projection
 
         visualize_sub_bundles(
-            orig_bundle=tract,
+            orig_bundle=tck_file,
             fsub_bundle=extracted_tck,
             ref_anat=ref_anat,
-            outpath_base=dwi_out_dir + hemi_list[0] + "_",
+            outpath_base=op.join(dwi_out_dir,f"{subject}_hemi-{hemi_list[0]}_{tract_name}_{rois_name}_desc-"),
             roi1=roi1_intersected,
             roi2=roi2_intersected,
             orig_color=orig_color_list,
