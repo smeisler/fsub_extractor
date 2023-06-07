@@ -11,20 +11,32 @@ def get_parser():
     )
     parser.add_argument(
         "--subject",
-        help="Subject name. Unless --skip-roi-proj is specified, this must match the name in the FreeSurfer folder.",
+        help="Subject name. This must match the subject name in the FreeSurfer folder.",
         required=True,
     )
     parser.add_argument(
         "--tract",
-        help="Path to tract file (.tck or .trk). Should be in the same space as FreeSurfer inputs.",
+        help="Path to original tract file (.tck or .trk).",
         type=op.abspath,
         required=True,
     )
     parser.add_argument(
+        "--tract-name",
+        "--tract_name",
+        help="Label for tract used in file names. Should not contain spaces. E.g., 'LeftAF' or 'wholebrain'. Default is 'track'.",
+        default="track",
+    )
+    parser.add_argument(
         "--roi1",
-        help="First ROI file (.mgz, .label, or .nii.gz). File should be binary (1 in ROI, 0 elsewhere).",
+        help="First ROI file (.mgz, .label, .gii, or .nii.gz). File should be binary (1 in ROI, 0 elsewhere).",
         type=op.abspath,
         required=True,
+    )
+    parser.add_argument(
+        "--roi1-name",
+        "--roi1_name",
+        help="What to call ROI1 outputs. Default is roi1",
+        default="roi1",
     )
     parser.add_argument(
         "--fs-dir",
@@ -36,39 +48,72 @@ def get_parser():
         "--hemi",
         help="FreeSurfer hemisphere name(s) corresponding to locations of the ROIs, separated by a comma (no spaces) if different for two ROIs (e.g 'lh,rh'). Required unless --skip-roi-proj is specified.",
     )
+    parser.add_argument(
+        "--reg",
+        help="Path to registration for mapping FreeSurfer-to-DWI space. Can also specify DWI-to-FreeSurfer space with the `--reg-invert` flag.",
+        type=op.abspath,
+    )
+    parser.add_argument(
+        "--reg-invert",
+        "--reg_invert",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+        help="Whether to inverse the registration (see help string for `--reg`.",
+    )
+    parser.add_argument(
+        "--reg-type",
+        "--reg_type",
+        choices=["LTA", "ITK", "FSL"],
+        default="LTA",
+        help="Registration format. LTA is the default for FreeSurfer and is .lta, ITK comes from ITK and ANTS and is .txt, FSL comes from FSL and is .mat",
+    )
     # parser.add_argument(
     #    "--fs-license",
     #    "--fs-license",
     #    help="Path to FreeSurfer license.",
     #    type=op.abspath,
-    # )  # TODO: MAKE REQUIRED LATER
+    # )  # TODO: MAKE REQUIRED LATER?
+    # parser.add_argument(
+    #    "--trk-ref",
+    #    "--trk_ref",
+    #    help="Path to reference file, if passing in a .trk file. Typically a nifti-related object from the native diffusion used for streamlines generation (e.g., a b0 image).",
+    #    type=op.abspath,
+    # )
     parser.add_argument(
-        "--trk-ref",
-        "--trk_ref",
-        help="Path to reference file, if passing in a .trk file. Typically a nifti-related object from the native diffusion used for streamlines generation (e.g., an FA map).",
+        "--gmwmi",
+        help="Path to GMWMI image (.nii.gz or .mif). If not specified or not found, it will be created from FreeSurfer inputs. Ignored if --skip-gmwmi-intersection is specified.",
         type=op.abspath,
     )
     parser.add_argument(
-        "--gmwmi",
-        help="Path to GMWMI image (.nii.gz or .mif). If not specified or not found, it will be created from FreeSurfer inputs. Image must be a binary mask. Ignored if --skip-gmwmi-intersection is specified.",
-        type=op.abspath,
+        "--gmwmi-thresh",
+        "--gmwmi_thresh",
+        help="Threshold above which to binarize the GMWMI image. Default is 0.0",
+        type=float,
+        default=0.0,
     )
     parser.add_argument(
         "--roi2",
-        help="Second ROI file (.mgz, .label, or .nii.gz). If specified, program will find streamlines connecting ROI1 and ROI2. File should be binary (1 in ROI, 0 elsewhere).",
+        help="Second ROI file (.mgz, .label, .gii, or .nii.gz). If specified, program will find streamlines connecting ROI1 and ROI2. File should be binary (1 in ROI, 0 elsewhere).",
         type=op.abspath,
+    )
+    parser.add_argument(
+        "--roi2-name",
+        "--roi2_name",
+        help="What to call ROI2 outputs. Default is roi2",
+        default="roi2",
     )
     parser.add_argument(
         "--search-dist",
         "--search_dist",
-        help="Distance in mm to search ahead of streamlines for ROIs (float). Default is 4.0 mm.",
+        help="Distance in mm to search from streamlines for ROIs (float). Default is 4.0 mm.",
         type=float,
         default=4.0,
     )
     parser.add_argument(
         "--search-type",
         "--search_type",
-        help="Method of searching for streamlines (radial, reverse, forward). Default is forward.",
+        choices=["forward", "radial", "reverse"],
+        help="Method of searching for streamlines. Default is forward.",
         type=str,
         default="forward",
     )
@@ -98,13 +143,13 @@ def get_parser():
         type=op.abspath,
         default=os.getcwd(),
     )
-    parser.add_argument(
-        "--out-prefix",
-        "--out_prefix",
-        help="Prefix for all output files. Default is no prefix.",
-        type=str,
-        default="",
-    )
+    # parser.add_argument(
+    #    "--out-prefix",
+    #    "--out_prefix",
+    #    help="Prefix for all output files. Default is no prefix.",
+    #    type=str,
+    #    default="",
+    # )
     parser.add_argument(
         "--overwrite",
         help="Whether to overwrite outputs. Default is to overwrite.",
@@ -125,86 +170,90 @@ def get_parser():
         default=False,
         action=argparse.BooleanOptionalAction,
     )
-    parser.add_argument(
+
+    # Visualization arguments
+    viz_args = parser.add_argument_group("Options for Visualization")
+    viz_args.add_argument(
         "--skip-viz",
         "--skip-viz",
         help="Whether to skip the output figure. Default is to produce the figure.",
         default=False,
         action=argparse.BooleanOptionalAction,
     )
-    parser.add_argument(
+    viz_args.add_argument(
         "--interactive-viz",
         "--interactive_viz",
         help="Whether to produce an interactive visualization. Default is not interactive.",
         default=False,
         action=argparse.BooleanOptionalAction,
     )
-    parser.add_argument(
+    viz_args.add_argument(
+        "--img-viz",
+        "--img-viz",
+        help="Path to image to plot in visualization (.nii.gz). Must be in same space as DWI/anatomical inputs.",
+        type=op.abspath,
+    )
+    viz_args.add_argument(
         "--orig-color",
         "--orig_color",
         help="Comma-delimited (no spaces) color spec for original bundle in visualization, as fractional R,G,B. Default is 0.8,0.8,0.",
         default="0.8,0.8,0",
         metavar=("R,G,B"),
     )
-    parser.add_argument(
+    viz_args.add_argument(
         "--fsub-color",
         "--fsub_color",
         help="Comma-delimited (no spaces) color spec for FSuB bundle in visualization, as fractional R,G,B. Default is 0.2,0.6,1.",
         default="0.2,0.6,1",
         metavar=("R,G,B"),
     )
-    parser.add_argument(
+    viz_args.add_argument(
         "--roi1-color",
         "--roi1_color",
         help="Comma-delimited (no spaces) color spec for ROI1 in visualization, as fractional R,G,B. Default is 0.2,1,1.",
         default="0.2,1,1",
         metavar=("R,G,B"),
     )
-    parser.add_argument(
+    viz_args.add_argument(
         "--roi2-color",
         "--roi2_color",
         help="Comma-delimited (no spaces) color spec for ROI2 in visualization, as fractional R,G,B. Default is 1,0.2,1.",
         default="1,0.2,1",
         metavar=("R,G,B"),
     )
-    parser.add_argument(
+    viz_args.add_argument(
         "--roi-opacity",
         "--roi_opacity",
         help="Opacity for ROI(s) in visualization (float). Default is 0.7.",
         default=0.7,
         type=float,
     )
-    parser.add_argument(
+    viz_args.add_argument(
         "--fsub-linewidth",
         "--fsub_linewidth",
         help="Linewidth for extracted steamlines in visualization (float). Default is 3.0.",
         default=3.0,
         type=float,
     )
-    parser.add_argument(
-        "--img-viz",
-        "--img-viz",
-        help="Path to image to plot in visualization (.nii.gz). Must be in same space as DWI/anatomical inputs.",
-        type=op.abspath,
-    )
-    parser.add_argument(
+    viz_args.add_argument(
         "--axial-offset",
         "--axial_offset",
-        help="Float (-1,1) describing where to display axial slice. -1 is bottom, 1 is top. Default is 0.0.",
+        help="Float (-1,1) describing where to display axial slice. -1.0 is bottom, 1.0 is top. Default is 0.0.",
         type=float,
         default=0.0,
     )
-    parser.add_argument(
+    viz_args.add_argument(
         "--saggital-offset",
         "--saggital_offset",
-        help="Float (-1,1) describing where to display saggital slice. -1 is left, 1 is right. Default is 0.0.",
+        help="Float (-1,1) describing where to display saggital slice. -1.0 is left, 1.0 is right. Default is 0.0.",
         type=float,
         default=0.0,
     )
-    parser.add_argument(
+    viz_args.add_argument(
         "--camera-angle",
         "--camera_angle",
-        help="Camera angle for visualization. Choices are either 'saggital' or 'axial'. Default is 'saggital.'",
+        choices=["saggital", "axial"],
+        help="Camera angle for visualization. Default is 'saggital.'",
         default="saggital",
     )
 
@@ -220,32 +269,39 @@ def main():
     main = extractor(
         subject=args.subject,
         tract=args.tract,
+        tract_name=args.tract_name,
         roi1=args.roi1,
+        roi1_name=args.roi1_name,
         fs_dir=args.fs_dir,
         hemi=args.hemi,
+        reg=args.reg,
+        reg_type=args.reg_type,
+        reg_invert=args.reg_invert,
         # fs_license=args.fs_license,
-        trk_ref=args.trk_ref,
+        # trk_ref=args.trk_ref,
         gmwmi=args.gmwmi,
+        gmwmi_thresh=args.gmwmi_thresh,
         roi2=args.roi2,
+        roi2_name=args.roi2_name,
         search_dist=str(args.search_dist),
         search_type=str(args.search_type),
         projfrac_params=args.projfrac_params,
         sift2_weights=args.sift2_weights,
         exclude_mask=args.exclude_mask,
         out_dir=args.out_dir,
-        out_prefix=args.out_prefix,
+        # out_prefix=args.out_prefix,
         overwrite=args.overwrite,
         skip_roi_projection=args.skip_roi_projection,
         skip_gmwmi_intersection=args.skip_gmwmi_intersection,
         skip_viz=args.skip_viz,
         interactive_viz=args.interactive_viz,
+        img_viz=args.img_viz,
         orig_color=args.orig_color,
         fsub_color=args.fsub_color,
         roi1_color=args.roi1_color,
         roi2_color=args.roi2_color,
         roi_opacity=args.roi_opacity,
         fsub_linewidth=args.fsub_linewidth,
-        img_viz=args.img_viz,
         axial_offset=args.axial_offset,
         saggital_offset=args.saggital_offset,
         camera_angle=args.camera_angle,

@@ -9,32 +9,39 @@ from fsub_extractor.utils.streamline_utils import *
 def extractor(
     subject,
     tract,
+    tract_name,
     roi1,
+    roi1_name,
     fs_dir,
     hemi,
+    reg,
+    reg_invert,
+    reg_type,
     # fs_license,
-    trk_ref,
+    # trk_ref,
     gmwmi,
+    gmwmi_thresh,
     roi2,
+    roi2_name,
     search_dist,
     search_type,
     projfrac_params,
     sift2_weights,
     exclude_mask,
     out_dir,
-    out_prefix,
+    # out_prefix,
     overwrite,
     skip_roi_projection,
     skip_gmwmi_intersection,
     skip_viz,
     interactive_viz,
+    img_viz,
     orig_color,
     fsub_color,
     roi1_color,
     roi2_color,
     roi_opacity,
     fsub_linewidth,
-    img_viz,
     axial_offset,
     saggital_offset,
     camera_angle,
@@ -92,7 +99,12 @@ def extractor(
     # 2. Make sure ROI(s) exist and are the correct file types
     if op.exists(roi1) == False:
         raise Exception(f"ROI file {roi1} is not found on the system.")
-    if roi1[-7:] != ".nii.gz" and roi1[-4:] != ".mgz" and roi1[-6:] != ".label":
+    if (
+        roi1[-7:] != ".nii.gz"
+        and roi1[-4:] != ".mgz"
+        and roi1[-6:] != ".label"
+        and roi1[-4:] != ".gii"
+    ):
         raise Exception(f"ROI file {roi1} is not a supported file type.")
     if roi2 != None and op.exists(roi2) == False:
         raise Exception(f"ROI file {roi2} is not found on the system.")
@@ -101,6 +113,7 @@ def extractor(
         and roi2[-7:] != ".nii.gz"
         and roi2[-4:] != ".mgz"
         and roi2[-6:] != ".label"
+        and roi2[-3:] != ".gii"
     ):
         raise Exception(f"ROI file {roi2} is not of a supported file type.")
 
@@ -109,8 +122,8 @@ def extractor(
         raise Exception(f"Tract file {tract} is not found on the system.")
     if tract[-4:] not in [".trk", ".tck"]:
         raise Exception(f"Tract file {tract} is not of a supported file type.")
-    if tract[-4:] == ".trk" and trk_ref == None:
-        raise Exception(".trk file passed in without a --trk-ref input.")
+    # if tract[-4:] == ".trk" and trk_ref == None:
+    #    raise Exception(".trk file passed in without a --trk-ref input.")
 
     # 4. Check if gmwmi exists or can be created if needed
     if gmwmi == None and fs_dir == None and skip_gmwmi_intersection == False:
@@ -135,9 +148,9 @@ def extractor(
 
     ### Prepare output directories ###
     # Add an underscore to separate prefix from file names if a prefix is specified
-    if len(out_prefix) > 0:
-        if out_prefix[-1] != "_":
-            out_prefix += "_"
+    # if len(out_prefix) > 0:
+    #    if out_prefix[-1] != "_":
+    #        out_prefix += "_"
 
     # Make output folders if they do not exist, and define the naming convention
     anat_out_dir = op.join(out_dir, subject, "anat")
@@ -146,19 +159,47 @@ def extractor(
     os.makedirs(anat_out_dir, exist_ok=True)
     os.makedirs(dwi_out_dir, exist_ok=True)
     os.makedirs(func_out_dir, exist_ok=True)
-    anat_out_base = op.join(anat_out_dir, out_prefix)
-    dwi_out_base = op.join(dwi_out_dir, out_prefix)
-    func_out_base = op.join(func_out_dir, out_prefix)
+    # anat_out_base = op.join(anat_out_dir, out_prefix)
+    # dwi_out_base = op.join(dwi_out_dir, out_prefix)
+    # func_out_base = op.join(func_out_dir, out_prefix)
 
-    # TODO: Parallelize GMWMI creation, roi projection/intersection
+    # TODO: Parallelize GMWMI creation with other processes?
     ### Create a GMWMI, intersect with ROI ###
     if skip_gmwmi_intersection == False and gmwmi == None:
         print("\n Creating a GMWMI \n")
         (fivett, gmwmi, gmwmi_bin) = anat_to_gmwmi(
-            fs_sub_dir, anat_out_dir, overwrite=overwrite
+            fs_sub_dir,
+            anat_out_dir,
+            threshold=gmwmi_thresh,
+            subject=subject,
+            overwrite=overwrite,
         )
     else:
-        gmwmi_bin = gmwmi
+        gmwmi_bin = binarize_image(
+            gmwmi,
+            outfile=op.join(anat_out_dir, f"{subject}_rec-binarized_desc-gmwmi.nii.gz"),
+            threshold=gmwmi_thresh,
+            comparison="gt",
+            overwrite=overwrite,
+        )
+
+    ### Prepare registration, if needed
+    if reg != None:
+        if (
+            reg_type != "LTA" or reg_invert == True
+        ):  # We only need to prepare if doing an invert or working with a non-LTA file
+            reg_transformed = op.join(anat_out_dir, f"{subject}_xfm-fs2dwi.lta")
+            src = op.join(fs_sub_dir, "mri", "orig.mgz")
+            trg = gmwmi_bin
+            reg = prepare_reg(
+                reg_in=reg,
+                reg_out=reg_transformed,
+                src=src,
+                trg=trg,
+                invert=reg_invert,
+                reg_type=reg_type,
+                overwrite=overwrite,
+            )
 
     ### Set flag for whether two rois were passed in ###
     if roi2 != None:
@@ -168,25 +209,28 @@ def extractor(
 
     ### Project the ROI(s) into the white matter and intersect with GMWMI ###
     if skip_roi_projection == False:
-        print("\n Projecting ROI1 into white matter \n")
+        print(f"\n Projecting {roi1_name} into white matter \n")
         roi1_projected = project_roi(
             roi_in=roi1,
+            roi_name=roi1_name,
             fs_dir=fs_dir,
             subject=subject,
             hemi=hemi_list[0],
-            outpath_base=func_out_base,
+            outdir=func_out_dir,
+            fs_to_dwi_lta=reg,
             projfrac_params=projfrac_params_list,
             overwrite=overwrite,
         )
     else:
-        print("\n Skipping ROI1 projection \n")
+        print(f"\n Skipping {roi1_name} projection \n")
         roi1_projected = roi1
     if skip_gmwmi_intersection == False:
-        print("\n Intersecting ROI1 with GMWMI \n")
+        print(f"\n Intersecting {roi1_name} with GMWMI \n")
         roi1_intersected = intersect_gmwmi(
             roi_in=roi1_projected,
+            roi_name=roi1_name,
             gmwmi=gmwmi_bin,
-            outpath_base=roi1_projected.removesuffix(".nii.gz"),
+            outpath_base=op.join(func_out_dir, subject),
             overwrite=overwrite,
         )
     else:
@@ -195,29 +239,34 @@ def extractor(
     ### Process ROI2 the same way if specified ###
     if two_rois == False:
         rois_in = roi1_intersected
+        rois_name = roi1_name
         roi2_projected = None
         roi2_intersected = None
     else:
+        rois_name = f"{roi1_name}-{roi2_name}"
         if skip_roi_projection == False:
-            print("\n Projecting ROI2 into white matter \n")
+            print(f"\n Projecting {roi2_name} into white matter \n")
             roi2_projected = project_roi(
                 roi_in=roi2,
+                roi_name=roi2_name,
                 fs_dir=fs_dir,
                 subject=subject,
                 hemi=hemi_list[-1],
                 outpath_base=func_out_base,
+                fs_to_dwi_lta=reg,
                 projfrac_params=projfrac_params_list,
                 overwrite=overwrite,
             )
         else:
-            print("\n Skipping ROI2 projection \n")
+            print(f"\n Skipping {roi2_name} projection \n")
             roi2_projected = roi2
         if skip_gmwmi_intersection == False:
-            print("\n Intersecting ROI2 with GMWMI \n")
+            print(f"\n Intersecting {roi2_name} with GMWMI \n")
             roi2_intersected = intersect_gmwmi(
                 roi_in=roi2_projected,
+                roi_name=roi2_name,
                 gmwmi=gmwmi_bin,
-                outpath_base=roi2_projected.removesuffix(".nii.gz"),
+                outpath_base=op.join(func_out_dir, subject),
                 overwrite=overwrite,
             )
         else:
@@ -228,14 +277,16 @@ def extractor(
         rois_in = merge_rois(
             roi1=roi1_intersected,
             roi2=roi2_intersected,
-            out_file=func_out_base + "rois_merged.nii.gz",
+            out_file=op.join(
+                func_out_dir, f"{subject}_rec-merged_desc-{roi1_name}{roi2_name}.nii.gz"
+            ),
             overwrite=overwrite,
         )
 
     ### Convert .trk to .tck if needed ###
     if tract[-4:] == ".trk":
         print("\n Converting .trk to .tck \n")
-        tck_file = trk_to_tck(tract, gmwmi, dwi_out_dir, overwrite=overwrite)
+        tck_file = trk_to_tck(tract, dwi_out_dir, overwrite=overwrite)
     else:
         tck_file = tract
 
@@ -244,8 +295,8 @@ def extractor(
     extracted_tck = extract_tck_mrtrix(
         tck_file,
         rois_in,
-        dwi_out_base,
-        two_rois,
+        outpath_base=op.join(dwi_out_dir, f"{subject}_{tract_name}_{rois_name}"),
+        two_rois=two_rois,
         search_dist=search_dist,
         search_type=search_type,
         sift2_weights=sift2_weights,
@@ -284,7 +335,7 @@ def extractor(
             orig_bundle=tract,
             fsub_bundle=extracted_tck,
             ref_anat=ref_anat,
-            outpath_base=dwi_out_base + hemi_list[0] + "_",
+            outpath_base=dwi_out_dir + hemi_list[0] + "_",
             roi1=roi1_intersected,
             roi2=roi2_intersected,
             orig_color=orig_color_list,
