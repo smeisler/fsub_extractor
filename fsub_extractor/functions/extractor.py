@@ -12,28 +12,26 @@ def extractor(
     tract_name,
     roi1,
     roi1_name,
+    roi2,
+    roi2_name,
     fs_dir,
     hemi,
     reg,
     reg_invert,
     reg_type,
     # fs_license,
-    # trk_ref,
     gmwmi,
     gmwmi_thresh,
-    roi2,
-    roi2_name,
     search_dist,
     search_type,
     projfrac_params,
     sift2_weights,
     exclude_mask,
     out_dir,
-    # out_prefix,
     overwrite,
     skip_roi_projection,
     skip_gmwmi_intersection,
-    skip_viz,
+    make_viz,
     interactive_viz,
     img_viz,
     orig_color,
@@ -113,7 +111,7 @@ def extractor(
         and roi2[-7:] != ".nii.gz"
         and roi2[-4:] != ".mgz"
         and roi2[-6:] != ".label"
-        and roi2[-3:] != ".gii"
+        and roi2[-4:] != ".gii"
     ):
         raise Exception(f"ROI file {roi2} is not of a supported file type.")
 
@@ -122,8 +120,6 @@ def extractor(
         raise Exception(f"Tract file {tract} is not found on the system.")
     if tract[-4:] not in [".trk", ".tck"]:
         raise Exception(f"Tract file {tract} is not of a supported file type.")
-    # if tract[-4:] == ".trk" and trk_ref == None:
-    #    raise Exception(".trk file passed in without a --trk-ref input.")
 
     # 4. Check if gmwmi exists or can be created if needed
     if gmwmi == None and fs_dir == None and skip_gmwmi_intersection == False:
@@ -146,12 +142,6 @@ def extractor(
 
     # 6. Make sure FS license is valid [TODO: HOW??]
 
-    ### Prepare output directories ###
-    # Add an underscore to separate prefix from file names if a prefix is specified
-    # if len(out_prefix) > 0:
-    #    if out_prefix[-1] != "_":
-    #        out_prefix += "_"
-
     # Make output folders if they do not exist, and define the naming convention
     anat_out_dir = op.join(out_dir, subject, "anat")
     dwi_out_dir = op.join(out_dir, subject, "dwi")
@@ -159,9 +149,6 @@ def extractor(
     os.makedirs(anat_out_dir, exist_ok=True)
     os.makedirs(dwi_out_dir, exist_ok=True)
     os.makedirs(func_out_dir, exist_ok=True)
-    # anat_out_base = op.join(anat_out_dir, out_prefix)
-    # dwi_out_base = op.join(dwi_out_dir, out_prefix)
-    # func_out_base = op.join(func_out_dir, out_prefix)
 
     # TODO: Parallelize GMWMI creation with other processes?
     ### Create a GMWMI, intersect with ROI ###
@@ -252,7 +239,7 @@ def extractor(
                 fs_dir=fs_dir,
                 subject=subject,
                 hemi=hemi_list[-1],
-                outpath_base=func_out_base,
+                outdir=func_out_dir,
                 fs_to_dwi_lta=reg,
                 projfrac_params=projfrac_params_list,
                 overwrite=overwrite,
@@ -306,7 +293,7 @@ def extractor(
     print("\n The extracted tract is located at " + extracted_tck + ".\n")
 
     ### Visualize the outputs ####
-    if skip_viz == False:
+    if make_viz:
         from fsub_extractor.utils.fury_viz import visualize_sub_bundles
 
         # Convert color strings to lists
@@ -335,7 +322,10 @@ def extractor(
             orig_bundle=tck_file,
             fsub_bundle=extracted_tck,
             ref_anat=ref_anat,
-            outpath_base=op.join(dwi_out_dir,f"{subject}_hemi-{hemi_list[0]}_{tract_name}_{rois_name}_desc-"),
+            outpath_base=op.join(
+                dwi_out_dir,
+                f"{subject}_hemi-{hemi_list[0]}_{tract_name}_{rois_name}_desc-",
+            ),
             roi1=roi1_intersected,
             roi2=roi2_intersected,
             orig_color=orig_color_list,

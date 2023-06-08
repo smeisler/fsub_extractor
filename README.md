@@ -34,34 +34,34 @@ If you are using this software, you should be at the point in your analysis wher
     * .trk or .tck; could be whole-brain or segmented bundles.
     * You might also have scalar maps (e.g., FA, MD, NODDI metrics; .nii.gz) that you want to sample streamlines on.
 * BINARY masks of ROIs, e.g. from fMRI GLM clusters.
-    * Can be defined in volumetric space (.nii.gz) or surface space (.mgz or .label).
+    * Can be defined in volumetric space (.nii.gz) or surface space (.mgz, .label, .gii).
 * FreeSurfer `recon-all` outputs on the subject's anatomical image.
-    * This is needed to create the GMWMI and project ROIs perpendicular to the white matter.
+    * This is needed to create the GMWMI and project ROIs into the white matter.
 * All files (anatomical, DWI/streamlines, fROIs) **must be in the same space** (voxel sizes do not need to be equal).
     
 ## Usage
 ### `extractor`
 The `extractor` function has two main use cases:
 1. Deriving *all* streamlines that connect to an ROI.
-    * Best-suited for looking at segmented bundles as opposed to whole-brain tractograms.
+    * Best-suited for looking at segmented bundles, as opposed to whole-brain tractograms.
 2. Deriving streamlines that connect a pair of ROIs.
-    * Whole-brain or segmented bundles can work, depending on the ROI locations.
+    * Whole-brain or segmented bundles can work, depending on the ROI locations and sizes.
 ```
 ❯ extractor -h
 usage: extractor [-h] --subject SUBJECT --tract TRACT
                  [--tract-name TRACT_NAME] --roi1 ROI1 [--roi1-name ROI1_NAME]
-                 [--fs-dir FS_DIR] [--hemi HEMI] [--reg REG]
+                 [--roi2 ROI2] [--roi2-name ROI2_NAME] [--fs-dir FS_DIR]
+                 [--hemi HEMI] [--reg REG]
                  [--reg-invert | --no-reg-invert | --reg_invert | --no-reg_invert]
                  [--reg-type {LTA,ITK,FSL}] [--gmwmi GMWMI]
-                 [--gmwmi-thresh GMWMI_THRESH] [--roi2 ROI2]
-                 [--roi2-name ROI2_NAME] [--search-dist SEARCH_DIST]
+                 [--gmwmi-thresh GMWMI_THRESH] [--search-dist SEARCH_DIST]
                  [--search-type {forward,radial,reverse}]
                  [--projfrac-params START,STOP,DELTA]
                  [--sift2-weights SIFT2_WEIGHTS] [--exclude-mask EXCLUDE_MASK]
                  [--out-dir OUT_DIR] [--overwrite | --no-overwrite]
                  [--skip-roi-projection | --no-skip-roi-projection | --skip_roi_projection | --no-skip_roi_projection]
                  [--skip-gmwmi-intersection | --no-skip-gmwmi-intersection | --skip_gmwmi_intersection | --no-skip_gmwmi_intersection]
-                 [--skip-viz | --no-skip-viz | --skip-viz | --no-skip-viz]
+                 [--make-viz | --no-make-viz | --make_viz | --no-make_viz]
                  [--interactive-viz | --no-interactive-viz | --interactive_viz | --no-interactive_viz]
                  [--img-viz IMG_VIZ] [--orig-color R,G,B] [--fsub-color R,G,B]
                  [--roi1-color R,G,B] [--roi2-color R,G,B]
@@ -86,6 +86,12 @@ options:
                         should be binary (1 in ROI, 0 elsewhere).
   --roi1-name ROI1_NAME, --roi1_name ROI1_NAME
                         What to call ROI1 outputs. Default is roi1
+  --roi2 ROI2           Second ROI file (.mgz, .label, .gii, or .nii.gz). If
+                        specified, program will find streamlines connecting
+                        ROI1 and ROI2. File should be binary (1 in ROI, 0
+                        elsewhere).
+  --roi2-name ROI2_NAME, --roi2_name ROI2_NAME
+                        What to call ROI2 outputs. Default is roi2
   --fs-dir FS_DIR, --fs_dir FS_DIR
                         Path to FreeSurfer subjects directory. Required unless
                         --skip-roi-proj is specified.
@@ -110,12 +116,6 @@ options:
   --gmwmi-thresh GMWMI_THRESH, --gmwmi_thresh GMWMI_THRESH
                         Threshold above which to binarize the GMWMI image.
                         Default is 0.0
-  --roi2 ROI2           Second ROI file (.mgz, .label, .gii, or .nii.gz). If
-                        specified, program will find streamlines connecting
-                        ROI1 and ROI2. File should be binary (1 in ROI, 0
-                        elsewhere).
-  --roi2-name ROI2_NAME, --roi2_name ROI2_NAME
-                        What to call ROI2 outputs. Default is roi2
   --search-dist SEARCH_DIST, --search_dist SEARCH_DIST
                         Distance in mm to search from streamlines for ROIs
                         (float). Default is 4.0 mm.
@@ -151,8 +151,8 @@ options:
                         Default is to not skip intersection. (default: False)
 
 Options for Visualization:
-  --skip-viz, --no-skip-viz, --skip-viz, --no-skip-viz
-                        Whether to skip the output figure. Default is to
+  --make-viz, --no-make-viz, --make-viz, --no-make-viz
+                        Whether to make the output figure. Default is to not
                         produce the figure. (default: False)
   --interactive-viz, --no-interactive-viz, --interactive_viz, --no-interactive_viz
                         Whether to produce an interactive visualization.

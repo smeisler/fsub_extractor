@@ -47,7 +47,6 @@ def project_roi(
         print("Using volumetric ROI projection pipeline")
 
         # Define output name for surface file
-        # roi_surf = outpath_base + op.basename(roi_in).replace(".nii.gz", ".gii")
         roi_surf = op.join(outdir, f"{subject}_rec-vol2surf_desc-{roi_name}.gii")
 
         ### Different ways to do it based on whether a FS-to-DWI registration was specified
@@ -69,10 +68,9 @@ def project_roi(
             ]
             run_command(cmd_lta_convert)
 
-            os.environ["SUBJECTS_DIR"] = op.join(
-                fs_dir, subject
-            )  # Little hack for FS to find the subject's cortical ribbon
-            # roi_surf = roi_in.replace(".nii.gz", ".mgz")
+            # Little hack for FS to find the subject's cortical ribbon
+            os.environ["SUBJECTS_DIR"] = op.join(fs_dir, subject)
+
             mri_vol2surf = find_program("mri_vol2surf")
             cmd_mri_vol2surf = [
                 mri_vol2surf,
@@ -115,7 +113,6 @@ def project_roi(
 
     if roi_surf[-6:] == ".label":
         print("Projecting FS .label file")
-        # out_path = roi_surf.replace(".label",".projected.nii.gz")
         roi_vol = op.join(outdir, f"{subject}_rec-label2vol_desc-{roi_name}.nii.gz")
         mri_label2vol = find_program("mri_label2vol")
         cmd_mri_label2vol = [
@@ -142,11 +139,8 @@ def project_roi(
         return roi_vol
 
     if roi_surf[-4:] == ".mgz" or roi_surf[-4:] == ".gii":
-        print("Projecting surface file")
-        # out_path = roi_surf.replace(".mgz",".projected.nii.gz")
+        print("Projecting FS .mgz/.gii surface file")
         roi_vol = op.join(outdir, f"{subject}_rec-surf2vol_desc-{roi_name}.nii.gz")
-        # filename = roi_surf.replace(roi_surf[-4:], ".projected.nii.gz")
-        # filename = op.basename(filename)
         mri_surf2vol = find_program("mri_surf2vol")
         cmd_mri_surf2vol = [
             mri_surf2vol,
@@ -163,16 +157,12 @@ def project_roi(
         if fs_to_dwi_lta != None:
             cmd_mri_surf2vol.insert(4, fs_to_dwi_lta)
             cmd_mri_surf2vol.insert(4, "--lta")
-            # cmd_mri_surf2vol += ["--lta", fs_to_dwi_lta]
-        print(cmd_mri_surf2vol)
         run_command(cmd_mri_surf2vol)
 
         return roi_vol
 
 
-def intersect_gmwmi(
-    roi_in, roi_name, gmwmi, outpath_base, overwrite=True
-):  # TODO: Fix so that it is meant to run on individual ROIs, not combined
+def intersect_gmwmi(roi_in, roi_name, gmwmi, outpath_base, overwrite=True):
     """Intersects an input ROI file with the GMWMI
 
     Parameters
@@ -212,7 +202,7 @@ def intersect_gmwmi(
     return mrcalc_out
 
 
-def merge_rois(roi1, roi2, out_file, overwrite=True):  # TODO: REFACTOR THIS
+def merge_rois(roi1, roi2, out_file, overwrite=True):
     """Creates the input ROI atlas-like file to be passed into tck2connectome.
         Multiplies the second ROI file passed by 2, and merges this file with the first file.
         Returns the merged file

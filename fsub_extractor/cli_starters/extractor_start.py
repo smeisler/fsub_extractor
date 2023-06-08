@@ -39,6 +39,17 @@ def get_parser():
         default="roi1",
     )
     parser.add_argument(
+        "--roi2",
+        help="Second ROI file (.mgz, .label, .gii, or .nii.gz). If specified, program will find streamlines connecting ROI1 and ROI2. File should be binary (1 in ROI, 0 elsewhere).",
+        type=op.abspath,
+    )
+    parser.add_argument(
+        "--roi2-name",
+        "--roi2_name",
+        help="What to call ROI2 outputs. Default is roi2",
+        default="roi2",
+    )
+    parser.add_argument(
         "--fs-dir",
         "--fs_dir",
         help="Path to FreeSurfer subjects directory. Required unless --skip-roi-proj is specified.",
@@ -72,13 +83,7 @@ def get_parser():
     #    "--fs-license",
     #    help="Path to FreeSurfer license.",
     #    type=op.abspath,
-    # )  # TODO: MAKE REQUIRED LATER?
-    # parser.add_argument(
-    #    "--trk-ref",
-    #    "--trk_ref",
-    #    help="Path to reference file, if passing in a .trk file. Typically a nifti-related object from the native diffusion used for streamlines generation (e.g., a b0 image).",
-    #    type=op.abspath,
-    # )
+    # )  # TODO: MAKE REQUIRED LATER FOR CONTAINER?
     parser.add_argument(
         "--gmwmi",
         help="Path to GMWMI image (.nii.gz or .mif). If not specified or not found, it will be created from FreeSurfer inputs. Ignored if --skip-gmwmi-intersection is specified.",
@@ -90,17 +95,6 @@ def get_parser():
         help="Threshold above which to binarize the GMWMI image. Default is 0.0",
         type=float,
         default=0.0,
-    )
-    parser.add_argument(
-        "--roi2",
-        help="Second ROI file (.mgz, .label, .gii, or .nii.gz). If specified, program will find streamlines connecting ROI1 and ROI2. File should be binary (1 in ROI, 0 elsewhere).",
-        type=op.abspath,
-    )
-    parser.add_argument(
-        "--roi2-name",
-        "--roi2_name",
-        help="What to call ROI2 outputs. Default is roi2",
-        default="roi2",
     )
     parser.add_argument(
         "--search-dist",
@@ -120,8 +114,8 @@ def get_parser():
     parser.add_argument(
         "--projfrac-params",
         "--projfrac_params",
-        help="Comma delimited list (no spaces) of projfrac parameters for mri_surf2vol / mri_label2vol. Provided as start,stop,delta. Default is --projfrac-params='-2,0,0.05'. Start must be negative to project into white matter.",
-        default="-2,0,0.05",
+        help="Comma delimited list (no spaces) of projfrac parameters for mri_surf2vol / mri_label2vol. Provided as start,stop,delta. Default is --projfrac-params='-1,0,0.1'. Start must be negative to project into white matter.",
+        default="-1,0,0.1",
         metavar=("START,STOP,DELTA"),
     )
     parser.add_argument(
@@ -143,13 +137,6 @@ def get_parser():
         type=op.abspath,
         default=os.getcwd(),
     )
-    # parser.add_argument(
-    #    "--out-prefix",
-    #    "--out_prefix",
-    #    help="Prefix for all output files. Default is no prefix.",
-    #    type=str,
-    #    default="",
-    # )
     parser.add_argument(
         "--overwrite",
         help="Whether to overwrite outputs. Default is to overwrite.",
@@ -174,9 +161,9 @@ def get_parser():
     # Visualization arguments
     viz_args = parser.add_argument_group("Options for Visualization")
     viz_args.add_argument(
-        "--skip-viz",
-        "--skip-viz",
-        help="Whether to skip the output figure. Default is to produce the figure.",
+        "--make-viz",
+        "--make_viz",
+        help="Whether to make the output figure. Default is to not produce the figure.",
         default=False,
         action=argparse.BooleanOptionalAction,
     )
@@ -278,7 +265,6 @@ def main():
         reg_type=args.reg_type,
         reg_invert=args.reg_invert,
         # fs_license=args.fs_license,
-        # trk_ref=args.trk_ref,
         gmwmi=args.gmwmi,
         gmwmi_thresh=args.gmwmi_thresh,
         roi2=args.roi2,
@@ -289,11 +275,10 @@ def main():
         sift2_weights=args.sift2_weights,
         exclude_mask=args.exclude_mask,
         out_dir=args.out_dir,
-        # out_prefix=args.out_prefix,
         overwrite=args.overwrite,
         skip_roi_projection=args.skip_roi_projection,
         skip_gmwmi_intersection=args.skip_gmwmi_intersection,
-        skip_viz=args.skip_viz,
+        make_viz=args.make_viz,
         interactive_viz=args.interactive_viz,
         img_viz=args.img_viz,
         orig_color=args.orig_color,
