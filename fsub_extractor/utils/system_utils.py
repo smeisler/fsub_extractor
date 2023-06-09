@@ -51,7 +51,7 @@ def find_program(program):
     raise Exception(f"Command {program} could not be found in PATH.")
 
 
-def run_command(cmd_list):
+def run_command(cmd_list, verbose=True):
     """Interface for running CLI commands in Python. Crashes if command returns an error.
     Parameters
     ==========
@@ -64,6 +64,15 @@ def run_command(cmd_list):
     """
 
     function_name = cmd_list[0]
+
+    if verbose:
+        # Print command run to the output
+        print(
+            "\n######## Running Shell Command: ########",
+        )
+        print(*cmd_list, sep=" ")
+        print("########################################\n")
+
     return_code = subprocess.run(cmd_list).returncode
     if return_code != 0:
         raise Exception(

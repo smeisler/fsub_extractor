@@ -2,7 +2,8 @@ import os.path as op
 import os
 from fsub_extractor.utils.system_utils import *
 
-def trk_to_tck(trk_file, ref, out_dir=os.getcwd(), overwrite=True):
+
+def trk_to_tck(trk_file, out_dir=os.getcwd(), overwrite=True):
     """Converts a .trk file to .tck using DIPY
     Parameters
     ==========
@@ -23,7 +24,8 @@ def trk_to_tck(trk_file, ref, out_dir=os.getcwd(), overwrite=True):
     from dipy.io.streamline import load_tractogram, save_tractogram
     import nibabel.filebasedimages
 
-    trk_loaded = load_tractogram(trk_file, ref)
+    # trk_loaded = load_tractogram(trk_file, ref)
+    trk_loaded = load_tractogram(trk_file, "same")
     filename = op.basename(trk_file).replace(".trk", ".tck")
     tck_file = op.join(out_dir, filename)
     save_tractogram(trk_loaded, tck_file)
@@ -36,10 +38,11 @@ def extract_tck_mrtrix(
     rois_in,
     outpath_base,
     two_rois,
-    search_dist=4.0,
+    search_dist=3.0,
     search_type="forward",
     sift2_weights=None,
     exclude_mask=None,
+    include_mask=None,
     overwrite=True,
 ):
     """Uses MRtrix tools to extract the TCK file that connects to the ROI(s)
@@ -78,8 +81,8 @@ def extract_tck_mrtrix(
 
     ### tck2connectome
     tck2connectome = find_program("tck2connectome")
-    tck2connectome_connectome_out = outpath_base + "connectome.txt"
-    tck2connectome_assignments_out = outpath_base + "assignments.txt"
+    tck2connectome_connectome_out = outpath_base + "_desc-connectome.txt"
+    tck2connectome_assignments_out = outpath_base + "_desc-assignments.txt"
     cmd_tck2connectome = [
         tck2connectome,
         tck_file,
@@ -101,7 +104,7 @@ def extract_tck_mrtrix(
 
     ### connectome2tck
     connectome2tck = find_program("connectome2tck")
-    connectome2tck_out = outpath_base + "extracted.tck"
+    connectome2tck_out = outpath_base + "_desc-fsub.tck"
     # Change connectome2tck arguments based on single node or pairwise nodes
     if two_rois:
         nodes = "1,2"
@@ -123,7 +126,7 @@ def extract_tck_mrtrix(
     else:
         cmd_connectome2tck += ["-force"]
     if sift2_weights != None:
-        sift2_weights_extracted = outpath_base + "extracted_weights"
+        sift2_weights_extracted = outpath_base + "desc-fsubSIFT2weights.csv"
         cmd_connectome2tck += [
             "-tck_weights_in",
             sift2_weights,
@@ -133,25 +136,29 @@ def extract_tck_mrtrix(
     run_command(cmd_connectome2tck)
 
     # Mask streamlines if requested
-    if exclude_mask != None:
-        tckedit_out = outpath_base + "extracted_masked.tck"
+    if exclude_mask != None or include_mask != None:
+        tckedit_out = outpath_base + "_desc-fsub_desc-masked.tck"
         tckedit = find_program("tckedit")
         cmd_tckedit = [
             tckedit,
-            "-exclude",
-            exclude_mask,
             connectome2tck_out,
             tckedit_out,
         ]
+        if exclude_mask != None:
+            cmd_tckedit += ["-exclude", exclude_mask]
+        if include_mask != None:
+            cmd_tckedit += ["-include", include_mask]
         if overwrite == False:
             overwrite_check(tckedit_out)
         else:
             cmd_tckedit += ["-force"]
         if sift2_weights != None:
-            sift2_weights_edited = outpath_base + "extracted_masked_weights.csv"
+            sift2_weights_edited = (
+                outpath_base + "desc-fsubSIFT2weights_desc-masked.csv"
+            )
             cmd_tckedit += [
                 "-tck_weights_in",
-                sift2_weights_extracted + ".csv",
+                sift2_weights_extracted,
                 "-tck_weights_out",
                 sift2_weights_edited,
             ]

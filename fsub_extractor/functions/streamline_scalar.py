@@ -22,13 +22,39 @@ def streamline_scalar(
     # roi_end,
     scalar_paths,
     scalar_names,
-    n_points,
     out_dir,
     out_prefix,
     overwrite,
+    n_points=100,
 ):
 
-    # TODO: add docs
+    """Creates scalar statistics on tract files
+    Parameters
+    ==========
+    subject name: str
+        Subject name
+    tract: str
+        Path to tract input
+    scalar_paths: str
+        Comma-delimited paths of scalars (.nii.gz) to analyze
+    scalar_names: str
+        Comma-delimited paths of scalar namess
+    n_points: int
+        Number of points to use in tract profiles
+    out_dir: str
+        Path to output directory
+    out_prefix: str
+        What to prepend to output names
+    overwrite: bool
+        Whether to overwrite existing files
+
+    Outputs
+    =======
+    Function saves out:
+        _profile.png file for each scalar with a graph of the tract profile
+        _stats.txt file with summary stats for each scalar
+        _streamline_means.csv file with per-streamline metrics for each scalar
+    """
 
     ### Split string of scalars to lists
     scalar_path_list = [op.abspath(scalar) for scalar in scalar_paths.split(",")]
@@ -49,18 +75,16 @@ def streamline_scalar(
         raise Exception(f"Tract file {tract} is not found on the system.")
     if tract[-4:] not in [".trk", ".tck"]:
         raise Exception(f"Tract file {tract} is not of a supported file type.")
-    # If .trk, use first scalar as reference file for conversion to .tck
-    trk_ref = scalar_path_list[0]
-    print(f"\n Using {trk_ref} as reference anatomy image. \n")
+    # Convert tract to .tck if needed
     if tract[-4:] == ".trk":
         print("\n Converting .trk to .tck \n")
-        tck_file = trk_to_tck(tract, trk_ref, out_dir, overwrite=overwrite)
+        tck_file = trk_to_tck(tract, out_dir, overwrite=overwrite)
     else:
         tck_file = tract
     # Make sure number of points for tract profile is not negative
     if n_points < 2:
         raise Exception(
-            "Number of points ({n_points}) must be an integer larger than 1."
+            f"Number of points ({n_points}) must be an integer larger than 1."
         )
     # Check if output directories exist
     if op.isdir(out_dir) == False:
@@ -84,7 +108,7 @@ def streamline_scalar(
     func_out_base = op.join(func_out_dir, out_prefix)
 
     ### Reorient streamlines so beginning of each streamline are at the same end
-    tract_loaded = load_tractogram(tract, trk_ref).streamlines
+    tract_loaded = load_tractogram(tract, scalar_path_list[0]).streamlines
     # TODO: See if we need to reorient streamlines, and how
     # trk_ref_img, ref_affine = load_nifti(trk_ref)
     # roi_begin_img = load_nifti_data(roi_begin)
