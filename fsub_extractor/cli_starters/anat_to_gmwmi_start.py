@@ -11,8 +11,9 @@ def get_parser():
     )
     parser.add_argument(
         "--subject",
-        help="Subject name. This must match the name in the FreeSurfer folder.",
+        help="Subject name. This must match the subject name in the FreeSurfer folder.",
         required=True,
+        metavar=("sub-XXX"),
     )
     parser.add_argument(
         "--anat_path",
@@ -20,6 +21,7 @@ def get_parser():
         help="Either the path to the FreeSurfer subject's directory (recommended) or path to the subject's T1 image.",
         type=op.abspath,
         required=True,
+        metavar=("/PATH/TO/FreeSurfer/SUBJECTSDIR/ | /PATH/TO/T1.nii.gz"),
     )
     parser.add_argument(
         "--threshold",
@@ -33,6 +35,7 @@ def get_parser():
         help="Directory where outputs will be stored (a subject-folder will be created there if it does not exist).",
         type=op.abspath,
         default=os.getcwd(),
+        metavar=("/PATH/TO/OUTDIR/"),
     )
     parser.add_argument(
         "--overwrite",
