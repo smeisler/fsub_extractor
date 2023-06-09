@@ -23,10 +23,9 @@ foo@bar:~$ pip install -e .    # for developer to update
 Dependencies include:
 * Python >= 3.9.0
 * MRTrix = 3.0.3
-* DIPY = 1.5.0
+* DIPY >= 1.5.0
 * vtk >= 9.1.0
-* Fury = 0.8.0
-* Dask = 2022.8.0
+* Fury >= 0.8.0
 * FreeSurfer >= 7.2.0 (it might work with lower versions, but this code was not tested on previous versions).
 
 If you are using this software, you should be at the point in your analysis where you have:
@@ -37,7 +36,7 @@ If you are using this software, you should be at the point in your analysis wher
     * Can be defined in volumetric space (.nii.gz) or surface space (.mgz, .label, .gii).
 * FreeSurfer `recon-all` outputs on the subject's anatomical image.
     * This is needed to create the GMWMI and project ROIs into the white matter.
-* All files (anatomical, DWI/streamlines, fROIs) **must be in the same space** (voxel sizes do not need to be equal).
+* Functional ROIs should be in the same space as FreeSurfer outputs. If DWI is in a different space (e.g., rotated to ACPC like in QSIPrep), a transformation can be supplied to define the rotation between FreeSurfer and DWI space (`--fs2dwi`).
     
 ## Usage
 ### `extractor`
@@ -48,187 +47,170 @@ The `extractor` function has two main use cases:
     * Whole-brain or segmented bundles can work, depending on the ROI locations and sizes.
 ```
 ❯ extractor -h
-usage: extractor [-h] --subject SUBJECT --tract TRACT
-                 [--tract-name TRACT_NAME] --roi1 ROI1 [--roi1-name ROI1_NAME]
-                 [--roi2 ROI2] [--roi2-name ROI2_NAME] [--fs-dir FS_DIR]
-                 [--hemi HEMI] [--reg REG]
-                 [--reg-invert | --no-reg-invert | --reg_invert | --no-reg_invert]
-                 [--reg-type {LTA,ITK,FSL}] [--gmwmi GMWMI]
-                 [--gmwmi-thresh GMWMI_THRESH] [--search-dist SEARCH_DIST]
-                 [--search-type {forward,radial,reverse}]
-                 [--projfrac-params START,STOP,DELTA]
-                 [--sift2-weights SIFT2_WEIGHTS] [--exclude-mask EXCLUDE_MASK]
-                 [--out-dir OUT_DIR] [--overwrite | --no-overwrite]
+usage: extractor [-h] --subject sub-XXX --tract /PATH/TO/TRACT.trk|.tck [--tract-name TRACT_NAME]
+                 --roi1 /PATH/TO/ROI1.mgz|.label|.gii|.nii.gz [--roi1-name ROI1_NAME]
+                 [--roi2 /PATH/TO/ROI2.mgz|.label|.gii|.nii.gz] [--roi2-name ROI2_NAME]
+                 [--fs-dir /PATH/TO/FreeSurfer/SUBJECTSDIR/] [--hemi {lh|rh|lh,rh|rh,lh}]
+                 [--fs2dwi /PATH/TO/FS2DWI-REG.lta|.txt|.mat]
+                 [--dwi2fs /PATH/TO/DWI2FS-REG.lta|.txt|.mat] [--reg-type {LTA,ITK,FSL}]
+                 [--gmwmi /PATH/TO/GMWMI.nii.gz|.mif] [--gmwmi-thresh THRESHOLD]
+                 [--search-dist DISTANCE] [--search-type {forward,radial,reverse}]
+                 [--projfrac-params START,STOP,DELTA] [--sift2-weights /PATH/TO/SIFT2_WEIGHTS.csv]
+                 [--exclude-mask /PATH/TO/EXCLUDE_MASK.nii.gz|.mif]
+                 [--include-mask /PATH/TO/INCLUDE_MASK.nii.gz|.mif] [--out-dir /PATH/TO/OUTDIR/]
+                 [--overwrite | --no-overwrite]
                  [--skip-roi-projection | --no-skip-roi-projection | --skip_roi_projection | --no-skip_roi_projection]
                  [--skip-gmwmi-intersection | --no-skip-gmwmi-intersection | --skip_gmwmi_intersection | --no-skip_gmwmi_intersection]
                  [--make-viz | --no-make-viz | --make_viz | --no-make_viz]
                  [--interactive-viz | --no-interactive-viz | --interactive_viz | --no-interactive_viz]
-                 [--img-viz IMG_VIZ] [--orig-color R,G,B] [--fsub-color R,G,B]
-                 [--roi1-color R,G,B] [--roi2-color R,G,B]
-                 [--roi-opacity ROI_OPACITY] [--fsub-linewidth FSUB_LINEWIDTH]
-                 [--axial-offset AXIAL_OFFSET]
-                 [--saggital-offset SAGGITAL_OFFSET]
+                 [--img-viz /PATH/TO/BACKGROUND_IMG.nii.gz] [--orig-color R,G,B] [--fsub-color R,G,B]
+                 [--roi1-color R,G,B] [--roi2-color R,G,B] [--roi-opacity OPACITY]
+                 [--fsub-linewidth LINEWIDTH] [--axial-offset OFFSET] [--saggital-offset OFFSET]
                  [--camera-angle {saggital,axial}]
 
-Functionally segments a tract file based on intersections with prespecified
-ROI(s) in gray matter.
+Functionally segments a tract file based on intersections with prespecified ROI(s) in gray matter.
 
 options:
   -h, --help            show this help message and exit
-  --subject SUBJECT     Subject name. This must match the subject name in the
-                        FreeSurfer folder.
-  --tract TRACT         Path to original tract file (.tck or .trk).
+  --subject sub-XXX     Subject name. This must match the subject name in the FreeSurfer folder.
+  --tract /PATH/TO/TRACT.trk|.tck
+                        Path to original tract file (.tck or .trk). Should be in DWI space.
   --tract-name TRACT_NAME, --tract_name TRACT_NAME
-                        Label for tract used in file names. Should not contain
-                        spaces. E.g., 'LeftAF' or 'wholebrain'. Default is
-                        'track'.
-  --roi1 ROI1           First ROI file (.mgz, .label, .gii, or .nii.gz). File
-                        should be binary (1 in ROI, 0 elsewhere).
+                        Label for tract used in file names. Should not contain spaces. E.g., 'LeftAF'
+                        or 'wholebrain'. Default is 'tract'.
+  --roi1 /PATH/TO/ROI1.mgz|.label|.gii|.nii.gz
+                        First ROI file (.mgz, .label, .gii, or .nii.gz). File should be binary (1 in
+                        ROI, 0 elsewhere).
   --roi1-name ROI1_NAME, --roi1_name ROI1_NAME
-                        What to call ROI1 outputs. Default is roi1
-  --roi2 ROI2           Second ROI file (.mgz, .label, .gii, or .nii.gz). If
-                        specified, program will find streamlines connecting
-                        ROI1 and ROI2. File should be binary (1 in ROI, 0
+                        Label for ROI1 outputs. Default is roi1
+  --roi2 /PATH/TO/ROI2.mgz|.label|.gii|.nii.gz
+                        Second ROI file (.mgz, .label, .gii, or .nii.gz). If specified, program will
+                        find streamlines connecting ROI1 and ROI2. File should be binary (1 in ROI, 0
                         elsewhere).
   --roi2-name ROI2_NAME, --roi2_name ROI2_NAME
-                        What to call ROI2 outputs. Default is roi2
-  --fs-dir FS_DIR, --fs_dir FS_DIR
-                        Path to FreeSurfer subjects directory. Required unless
+                        Label for ROI2 outputs. Default is roi2
+  --fs-dir /PATH/TO/FreeSurfer/SUBJECTSDIR/, --fs_dir /PATH/TO/FreeSurfer/SUBJECTSDIR/
+                        Path to FreeSurfer subjects directory. It should have a folder in it with your
+                        subject name. Required unless --skip-roi-proj is specified.
+  --hemi {lh|rh|lh,rh|rh,lh}
+                        FreeSurfer hemisphere name(s) corresponding to locations of the ROIs, separated
+                        by a comma (no spaces) if different for two ROIs (e.g 'lh,rh'). Required unless
                         --skip-roi-proj is specified.
-  --hemi HEMI           FreeSurfer hemisphere name(s) corresponding to
-                        locations of the ROIs, separated by a comma (no
-                        spaces) if different for two ROIs (e.g 'lh,rh').
-                        Required unless --skip-roi-proj is specified.
-  --reg REG             Path to registration for mapping FreeSurfer-to-DWI
-                        space. Can also specify DWI-to-FreeSurfer space with
-                        the `--reg-invert` flag.
-  --reg-invert, --no-reg-invert, --reg_invert, --no-reg_invert
-                        Whether to inverse the registration (see help string
-                        for `--reg`. (default: False)
+  --fs2dwi /PATH/TO/FS2DWI-REG.lta|.txt|.mat
+                        Path to registration for mapping FreeSurfer-to-DWI space. Mutually exclusive
+                        with --dwi2fs.
+  --dwi2fs /PATH/TO/DWI2FS-REG.lta|.txt|.mat
+                        Path to registration for mapping DWI-to-FreeSurfer space. Mutually exclusive
+                        with --fs2dwi.
   --reg-type {LTA,ITK,FSL}, --reg_type {LTA,ITK,FSL}
-                        Registration format. LTA is the default for FreeSurfer
-                        and is .lta, ITK comes from ITK and ANTS and is .txt,
-                        FSL comes from FSL and is .mat
-  --gmwmi GMWMI         Path to GMWMI image (.nii.gz or .mif). If not
-                        specified or not found, it will be created from
-                        FreeSurfer inputs. Ignored if --skip-gmwmi-
-                        intersection is specified.
-  --gmwmi-thresh GMWMI_THRESH, --gmwmi_thresh GMWMI_THRESH
-                        Threshold above which to binarize the GMWMI image.
-                        Default is 0.0
-  --search-dist SEARCH_DIST, --search_dist SEARCH_DIST
-                        Distance in mm to search from streamlines for ROIs
-                        (float). Default is 4.0 mm.
+                        Registration format. LTA is the default for FreeSurfer and is .lta, ITK comes
+                        from ITK and ANTS and is presumed to be a .txt, FSL comes from FSL and is .mat.
+                        If left blank, will try to infer from file extension. Only try defining this if
+                        inferring the registration type does not work and creates errors.
+  --gmwmi /PATH/TO/GMWMI.nii.gz|.mif
+                        Path to GMWMI image (.nii.gz or .mif). If not specified or not found, it will
+                        be created from FreeSurfer inputs. Ignored if --skip-gmwmi-intersection is
+                        specified. Should be in DWI space.
+  --gmwmi-thresh THRESHOLD, --gmwmi_thresh THRESHOLD
+                        Threshold above which to binarize the GMWMI image. Default is 0.0
+  --search-dist DISTANCE, --search_dist DISTANCE
+                        Distance in mm to search from streamlines for ROIs (float). Default is 3.0 mm.
   --search-type {forward,radial,reverse}, --search_type {forward,radial,reverse}
-                        Method of searching for streamlines. Default is
-                        forward.
+                        Method of searching for streamlines. Default is forward.
   --projfrac-params START,STOP,DELTA, --projfrac_params START,STOP,DELTA
-                        Comma delimited list (no spaces) of projfrac
-                        parameters for mri_surf2vol / mri_label2vol. Provided
-                        as start,stop,delta. Default is --projfrac-
-                        params='-2,0,0.05'. Start must be negative to project
-                        into white matter.
-  --sift2-weights SIFT2_WEIGHTS, --sift2_weights SIFT2_WEIGHTS
-                        Path to SIFT2 weights file. If supplied, the sum of
-                        weights will be output with streamline extraction.
-  --exclude-mask EXCLUDE_MASK, --exclude_mask EXCLUDE_MASK
-                        Path to exclusion mask (.nii.gz or .mif). If
-                        specified, streamlines that enter this mask will be
-                        discarded.
-  --out-dir OUT_DIR, --out_dir OUT_DIR
-                        Directory where outputs will be stored (a subject-
-                        folder will be created there if it does not exist).
+                        Comma delimited list (no spaces) of projfrac parameters for mri_surf2vol /
+                        mri_label2vol. Provided as start,stop,delta. Default is --projfrac-
+                        params='-1,0,0.1'. Start must be negative to project into white matter.
+  --sift2-weights /PATH/TO/SIFT2_WEIGHTS.csv, --sift2_weights /PATH/TO/SIFT2_WEIGHTS.csv
+                        Path to SIFT2 weights file. If supplied, the sum of weights will be output with
+                        streamline extraction.
+  --exclude-mask /PATH/TO/EXCLUDE_MASK.nii.gz|.mif, --exclude_mask /PATH/TO/EXCLUDE_MASK.nii.gz|.mif
+                        Path to exclusion mask (.nii.gz or .mif). If specified, streamlines that enter
+                        this mask will be discarded. Must be in DWI space.
+  --include-mask /PATH/TO/INCLUDE_MASK.nii.gz|.mif, --include_mask /PATH/TO/INCLUDE_MASK.nii.gz|.mif
+                        Path to inclusion mask (.nii.gz or .mif). If specified, streamlines must
+                        intersect with this mask to be included (e.g., a waypoint ROI). Must be in DWI
+                        space.
+  --out-dir /PATH/TO/OUTDIR/, --out_dir /PATH/TO/OUTDIR/
+                        Directory where outputs will be stored (a subject-folder will be created there
+                        if it does not exist). Default is current directory.
   --overwrite, --no-overwrite
-                        Whether to overwrite outputs. Default is to overwrite.
-                        (default: True)
+                        Whether to overwrite outputs. Default is to overwrite. (default: True)
   --skip-roi-projection, --no-skip-roi-projection, --skip_roi_projection, --no-skip_roi_projection
-                        Whether to skip projecting ROI into WM (not
-                        recommended unless ROI is already projected). Default
-                        is to not skip projection. (default: False)
+                        Whether to skip projecting ROI into WM (not recommended unless ROI is already
+                        projected). Default is to not skip projection. (default: False)
   --skip-gmwmi-intersection, --no-skip-gmwmi-intersection, --skip_gmwmi_intersection, --no-skip_gmwmi_intersection
-                        Whether to skip intersecting ROI with GMWMI (not
-                        recommended unless ROI is already intersected).
-                        Default is to not skip intersection. (default: False)
+                        Whether to skip intersecting ROI with GMWMI (not recommended unless ROI is
+                        already intersected). Default is to not skip intersection. (default: False)
 
 Options for Visualization:
-  --make-viz, --no-make-viz, --make-viz, --no-make-viz
-                        Whether to make the output figure. Default is to not
-                        produce the figure. (default: False)
+  --make-viz, --no-make-viz, --make_viz, --no-make_viz
+                        Whether to make the output figure. Default is to not produce the figure.
+                        (default: False)
   --interactive-viz, --no-interactive-viz, --interactive_viz, --no-interactive_viz
-                        Whether to produce an interactive visualization.
-                        Default is not interactive. (default: False)
-  --img-viz IMG_VIZ, --img-viz IMG_VIZ
-                        Path to image to plot in visualization (.nii.gz). Must
-                        be in same space as DWI/anatomical inputs.
+                        Whether to produce an interactive visualization. Default is not interactive.
+                        (default: False)
+  --img-viz /PATH/TO/BACKGROUND_IMG.nii.gz, --img-viz /PATH/TO/BACKGROUND_IMG.nii.gz
+                        Path to image to plot in visualization (.nii.gz). Should be in DWI space.
   --orig-color R,G,B, --orig_color R,G,B
-                        Comma-delimited (no spaces) color spec for original
-                        bundle in visualization, as fractional R,G,B. Default
-                        is 0.8,0.8,0.
+                        Comma-delimited (no spaces) color spec for original bundle in visualization, as
+                        fractional R,G,B. Default is 0.8,0.8,0.
   --fsub-color R,G,B, --fsub_color R,G,B
-                        Comma-delimited (no spaces) color spec for FSuB bundle
-                        in visualization, as fractional R,G,B. Default is
-                        0.2,0.6,1.
+                        Comma-delimited (no spaces) color spec for FSuB bundle in visualization, as
+                        fractional R,G,B. Default is 0.2,0.6,1.
   --roi1-color R,G,B, --roi1_color R,G,B
-                        Comma-delimited (no spaces) color spec for ROI1 in
-                        visualization, as fractional R,G,B. Default is
-                        0.2,1,1.
+                        Comma-delimited (no spaces) color spec for ROI1 in visualization, as fractional
+                        R,G,B. Default is 0.2,1,1.
   --roi2-color R,G,B, --roi2_color R,G,B
-                        Comma-delimited (no spaces) color spec for ROI2 in
-                        visualization, as fractional R,G,B. Default is
-                        1,0.2,1.
-  --roi-opacity ROI_OPACITY, --roi_opacity ROI_OPACITY
-                        Opacity for ROI(s) in visualization (float). Default
-                        is 0.7.
-  --fsub-linewidth FSUB_LINEWIDTH, --fsub_linewidth FSUB_LINEWIDTH
-                        Linewidth for extracted steamlines in visualization
-                        (float). Default is 3.0.
-  --axial-offset AXIAL_OFFSET, --axial_offset AXIAL_OFFSET
-                        Float (-1,1) describing where to display axial slice.
-                        -1.0 is bottom, 1.0 is top. Default is 0.0.
-  --saggital-offset SAGGITAL_OFFSET, --saggital_offset SAGGITAL_OFFSET
-                        Float (-1,1) describing where to display saggital
-                        slice. -1.0 is left, 1.0 is right. Default is 0.0.
+                        Comma-delimited (no spaces) color spec for ROI2 in visualization, as fractional
+                        R,G,B. Default is 1,0.2,1.
+  --roi-opacity OPACITY, --roi_opacity OPACITY
+                        Opacity (0,1) for ROI(s) in visualization (float). Default is 0.7.
+  --fsub-linewidth LINEWIDTH, --fsub_linewidth LINEWIDTH
+                        Linewidth for extracted steamlines in visualization (float). Default is 3.0.
+  --axial-offset OFFSET, --axial_offset OFFSET
+                        Float (-1,1) describing where to display axial slice. -1.0 is bottom, 1.0 is
+                        top. Default is 0.0.
+  --saggital-offset OFFSET, --saggital_offset OFFSET
+                        Float (-1,1) describing where to display saggital slice. -1.0 is left, 1.0 is
+                        right. Default is 0.0.
   --camera-angle {saggital,axial}, --camera_angle {saggital,axial}
                         Camera angle for visualization. Default is 'saggital.'
  ```
  ### `streamline_scalar`
  The `streamline_scalar` function can be used to find summary stats of a given scalar map (e.g. fractional anisotropy) within a given tract, as well as produce tract-profiles for these scalars along the length of the tract.
- ```
- streamline_scalar -h
-usage: streamline_scalar [-h] --subject SUBJECT --tract TRACT --scalar_paths
-                         SCALAR_PATHS --scalar_names SCALAR_NAMES
-                         [--n_points N_POINTS] [--out-dir OUT_DIR]
-                         [--out-prefix OUT_PREFIX]
-                         [--overwrite | --no-overwrite]
+```
+❯ streamline_scalar -h
+usage: streamline_scalar [-h] --subject sub-XXX --tract /PATH/TO/TRACT.trk|.tck --scalar_paths
+                         /PATH/TO/SCALAR1.nii.gz,/PATH/TO/SCALAR2.nii.gz... --scalar_names
+                         SCALAR1,SCALAR2... [--n_points POINTS] [--out-dir /PATH/TO/OUTDIR/]
+                         [--out-prefix PREFIX] [--overwrite | --no-overwrite]
 
-Extracts tract-average and along-the-tract measures of input scalar metrics
-(.nii.gz) for a specified streamline file (.tck/.trk).
+Extracts tract-average and along-the-tract measures of input scalar metrics (.nii.gz) for a specified
+streamline file (.tck/.trk).
 
 options:
   -h, --help            show this help message and exit
-  --subject SUBJECT     Subject name.
-  --tract TRACT         Path to tract file (.tck or .trk). Should be in the
-                        same space as the scalar map inputs.
-  --scalar_paths SCALAR_PATHS, --scalar-paths SCALAR_PATHS
-                        Comma delimited list (no spaces) of path(s) to scalar
-                        maps (e.g. /path/to/FA.nii.gz). This will also be used
-                        as a spatial reference file is a .trk file is passed
-                        in as a streamlines object.
-  --scalar_names SCALAR_NAMES, --scalar-names SCALAR_NAMES
-                        Comma delimited list (no spaces) of names to scalar
-                        maps (e.g. Fractional_Anisotropy). The number of names
-                        must match the number of scalar paths
-  --n_points N_POINTS, --n-points N_POINTS
-                        Number of nodes to use in tract profile (default is
-                        100)
-  --out-dir OUT_DIR, --out_dir OUT_DIR
-                        Directory where outputs will be stored (a subject-
-                        folder will be created there if it does not exist).
-  --out-prefix OUT_PREFIX, --out_prefix OUT_PREFIX
+  --subject sub-XXX     Subject name.
+  --tract /PATH/TO/TRACT.trk|.tck
+                        Path to tract file (.tck or .trk). Should be in the same space as the scalar
+                        map inputs.
+  --scalar_paths /PATH/TO/SCALAR1.nii.gz,/PATH/TO/SCALAR2.nii.gz..., --scalar-paths /PATH/TO/SCALAR1.nii.gz,/PATH/TO/SCALAR2.nii.gz...
+                        Comma delimited list (no spaces) of path(s) to scalar maps (e.g.
+                        /path/to/FA.nii.gz).
+  --scalar_names SCALAR1,SCALAR2..., --scalar-names SCALAR1,SCALAR2...
+                        Comma delimited list (no spaces) of names to scalar maps (e.g.
+                        Fractional_Anisotropy). The number of names must match the number of scalar
+                        paths
+  --n_points POINTS, --n-points POINTS
+                        Number of nodes to use in tract profile (default is 100)
+  --out-dir /PATH/TO/OUTDIR/, --out_dir /PATH/TO/OUTDIR/
+                        Directory where outputs will be stored (a subject-folder will be created there
+                        if it does not exist). Default is current directory.
+  --out-prefix PREFIX, --out_prefix PREFIX
                         Prefix for all output files. Default is no prefix.
   --overwrite, --no-overwrite
-                        Whether to overwrite outputs. Default is to overwrite.
-                        (default: True)
+                        Whether to overwrite outputs. Default is to overwrite. (default: True)
 ```
 
 ## Questions? Want to contribute?

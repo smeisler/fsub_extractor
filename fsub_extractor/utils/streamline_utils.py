@@ -38,10 +38,11 @@ def extract_tck_mrtrix(
     rois_in,
     outpath_base,
     two_rois,
-    search_dist=4.0,
+    search_dist=3.0,
     search_type="forward",
     sift2_weights=None,
     exclude_mask=None,
+    include_mask=None,
     overwrite=True,
 ):
     """Uses MRtrix tools to extract the TCK file that connects to the ROI(s)
@@ -135,16 +136,18 @@ def extract_tck_mrtrix(
     run_command(cmd_connectome2tck)
 
     # Mask streamlines if requested
-    if exclude_mask != None:
+    if exclude_mask != None or include_mask != None:
         tckedit_out = outpath_base + "_desc-fsub_desc-masked.tck"
         tckedit = find_program("tckedit")
         cmd_tckedit = [
             tckedit,
-            "-exclude",
-            exclude_mask,
             connectome2tck_out,
             tckedit_out,
         ]
+        if exclude_mask != None:
+            cmd_tckedit += ["-exclude", exclude_mask]
+        if include_mask != None:
+            cmd_tckedit += ["-include", include_mask]
         if overwrite == False:
             overwrite_check(tckedit_out)
         else:

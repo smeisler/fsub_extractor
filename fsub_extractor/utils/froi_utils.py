@@ -157,6 +157,7 @@ def project_roi(
         if fs_to_dwi_lta != None:
             cmd_mri_surf2vol.insert(4, fs_to_dwi_lta)
             cmd_mri_surf2vol.insert(4, "--lta")
+
         run_command(cmd_mri_surf2vol)
 
         return roi_vol

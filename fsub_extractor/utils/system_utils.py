@@ -68,10 +68,10 @@ def run_command(cmd_list, verbose=True):
     if verbose:
         # Print command run to the output
         print(
-            "\n######## Running Command: ########",
+            "\n######## Running Shell Command: ########",
         )
         print(*cmd_list, sep=" ")
-        print("##################################\n")
+        print("########################################\n")
 
     return_code = subprocess.run(cmd_list).returncode
     if return_code != 0:

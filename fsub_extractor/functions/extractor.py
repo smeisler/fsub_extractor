@@ -16,8 +16,8 @@ def extractor(
     roi2_name,
     fs_dir,
     hemi,
-    reg,
-    reg_invert,
+    fs2dwi,
+    dwi2fs,
     reg_type,
     # fs_license,
     gmwmi,
@@ -27,6 +27,7 @@ def extractor(
     projfrac_params,
     sift2_weights,
     exclude_mask,
+    include_mask,
     out_dir,
     overwrite,
     skip_roi_projection,
@@ -44,13 +45,15 @@ def extractor(
     saggital_offset,
     camera_angle,
 ):
+    # Force start log outputs on new line
+    print("\n")
 
     ### Check for assertion errors ###
 
     # 1. If ROIs are to be projected or GMWMI craeted, make sure FS dir exists, hemispheres are valid, and proj-frac params are valid
     fs_sub_dir = op.join(fs_dir, subject)
     if skip_roi_projection == False or gmwmi == None:
-        # Check FS dir
+        # Check FreeSurfer directory passed in and is valid
         if fs_dir == None:
             raise Exception("No FreeSurfer directory passed in.")
         if op.isdir(op.join(fs_sub_dir, "surf")) == False:
@@ -58,6 +61,7 @@ def extractor(
                 f"{fs_sub_dir} does not appear to be a valid FreeSurfer directory."
             )
 
+    # Split hemisphere input into list (useful if multiple are hemis are used)
     if hemi != None:
         hemi_list = hemi.split(",")
 
@@ -66,14 +70,9 @@ def extractor(
         if hemi == None:
             raise Exception("--hemi must be specified if not skipping ROI projection.")
         else:
-            for hemisphere in hemi_list:
-                if hemisphere != "lh" and hemisphere != "rh":
-                    raise Exception(
-                        f"Hemispheres must be either 'lh' or 'rh'. Current input is {hemi_list}."
-                    )
-            if len(hemi_list) > 2:
-                raise Exception(
-                    "Invalid number of hemispheres specified. Number of inputs should match the number of ROIs (or just one input if both ROIs are in the same hemisphere)."
+            if len(hemi_list) > 1 and roi2 == None:
+                warnings.warn(
+                    f"More than one hemisphere specified for only one ROI. Will only use first hemisphere ({hemi_list[0]}.)"
                 )
         # Check projfrac-params
         projfrac_params_list = projfrac_params.split(",")
@@ -103,7 +102,9 @@ def extractor(
         and roi1[-6:] != ".label"
         and roi1[-4:] != ".gii"
     ):
-        raise Exception(f"ROI file {roi1} is not a supported file type.")
+        raise Exception(
+            f"ROI file {roi1} is not of a supported file type (.nii.gz, .mgz, .label, .gii)."
+        )
     if roi2 != None and op.exists(roi2) == False:
         raise Exception(f"ROI file {roi2} is not found on the system.")
     if (
@@ -113,31 +114,64 @@ def extractor(
         and roi2[-6:] != ".label"
         and roi2[-4:] != ".gii"
     ):
-        raise Exception(f"ROI file {roi2} is not of a supported file type.")
+        raise Exception(
+            f"ROI file {roi2} is not of a supported file type (.nii.gz, .mgz, .label, .gii)."
+        )
 
-    # 3. Make sure tract file is okay
+    # 3. Make sure tract file is found and valid file type
     if op.exists(tract) == False:
         raise Exception(f"Tract file {tract} is not found on the system.")
     if tract[-4:] not in [".trk", ".tck"]:
-        raise Exception(f"Tract file {tract} is not of a supported file type.")
+        raise Exception(
+            f"Tract file {tract} is not of a supported file type (.trk, .tck)."
+        )
 
     # 4. Check if gmwmi exists or can be created if needed
+    gmwmi_path_check = op.join(
+        out_dir, subject, "anat", f"{subject}_desc-gmwmi.nii.gz"
+    )  # Where to look for pre-existing GMWMI
     if gmwmi == None and fs_dir == None and skip_gmwmi_intersection == False:
         raise Exception(
             "GMWMI cannot be created unless a FreeSurfer directory is passed into --fs-dir."
         )
-    elif gmwmi == None and op.exists(op.join(out_dir, subject, "anat", "gmwmi.nii.gz")):
-        gmwmi = op.join(out_dir, subject, "anat", "gmwmi.nii.gz")
+    elif gmwmi == None and op.exists(gmwmi_path_check):
+        gmwmi = gmwmi_path_check
     elif gmwmi != None and op.exists(gmwmi) == False:
         warnings.warn(
             "GMWMI was specified but not found on the system. A new one will be created from the FreeSurfer input."
         )
         gmwmi = None
 
-    # 5. Make sure camera angle is valid
-    if camera_angle != "saggital" and camera_angle != "axial":
+    # 5. Define the registration
+    if fs2dwi != None and dwi2fs != None:
         raise Exception(
-            f"Camera angle must be either 'saggital' or 'axial'. {camera_angle} was specified."
+            "Please only supply EITHER a fs2dwi OR dwi2fs transformation, not both."
+        )
+    if fs2dwi == None and dwi2fs == None:
+        reg = None
+        reg_invert = None
+        reg_type = None
+    elif fs2dwi != None:
+        reg = fs2dwi
+        reg_invert = False
+    elif dwi2fs != None:
+        reg = dwi2fs
+        reg_invert = True
+    # Infer registration type if not supplied
+    if reg != None and reg_type == None:
+        reg_fmt = reg[-4:]
+        if reg_fmt == ".lta":
+            reg_type = "LTA"
+        elif reg_fmt == ".txt":
+            reg_type = "ITK"
+        elif reg_fmt == ".mat":
+            reg_type = "FSL"
+        else:
+            raise Exception(
+                f"Registration format must be either .lta (LTA), .txt (ITK/ANTS), or .mat (FSL). A format of {reg_fmt} was supplied."
+            )
+        warnings.warn(
+            f"A registration type of {reg_type} was inferred based on the filename. If this is incorrect, please manually specify type with --reg-type flag."
         )
 
     # 6. Make sure FS license is valid [TODO: HOW??]
@@ -150,7 +184,8 @@ def extractor(
     os.makedirs(dwi_out_dir, exist_ok=True)
     os.makedirs(func_out_dir, exist_ok=True)
 
-    # TODO: Parallelize GMWMI creation with other processes?
+    # TODO: Parallelize stuff...
+
     ### Create a GMWMI, intersect with ROI ###
     if skip_gmwmi_intersection == False and gmwmi == None:
         print("\n Creating a GMWMI \n")
@@ -288,6 +323,7 @@ def extractor(
         search_type=search_type,
         sift2_weights=sift2_weights,
         exclude_mask=exclude_mask,
+        include_mask=include_mask,
         overwrite=overwrite,
     )
     print("\n The extracted tract is located at " + extracted_tck + ".\n")
@@ -322,9 +358,9 @@ def extractor(
             orig_bundle=tck_file,
             fsub_bundle=extracted_tck,
             ref_anat=ref_anat,
-            outpath_base=op.join(
+            fname=op.join(
                 dwi_out_dir,
-                f"{subject}_hemi-{hemi_list[0]}_{tract_name}_{rois_name}_desc-",
+                f"{subject}_hemi-{hemi_list[0]}_{tract_name}_{rois_name}_desc-visualization.png",
             ),
             roi1=roi1_intersected,
             roi2=roi2_intersected,
