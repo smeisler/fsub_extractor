@@ -117,6 +117,74 @@ def binarize_image(img, outfile, threshold=0, comparison="gt", overwrite=True):
     return outfile
 
 
+def project_wm_surf(
+    subject,
+    fs_dir,
+    hemi,
+    proj_dist=-1.0,
+    surf_name="white",
+    outpath=None,
+    overwrite=True,
+):
+
+    """Makes a new surface projected into white matter
+
+    Parameters
+    ==========
+    subject: str
+            Subject name as found in FreeSurfer subjects directory
+    fs_dir: str
+            Path to FreeSurfer subjects directory
+    hemi: str
+            Hemisphere in FreeSurfer 'lh'/'rh' notatin
+    proj_dist: float/int
+            Distance in mm to project. Negative is into white matter (Default is -1.0)
+
+    Outputs
+    =======
+    Function returns path to binarized image
+    outfile is the binarized image
+    """
+
+    ### Tell FreeSurfer where subject data is
+    os.environ["SUBJECTS_DIR"] = fs_dir
+    surf_name = "white"
+
+    ### Define the mri_surf2surf command
+    mri_surf2surf = find_program("mri_surf2surf")
+
+    # If no outpath, save output in FreeSurfer "surf" folder
+    if outpath == None:
+        outpath = op.join(
+            fs_dir, subject, "surf", f"{hemi}.{surf_name}.projabs_{str(proj_dist)}mm"
+        )
+
+    # Convert proj_dist to string if needed
+    proj_dist = str(proj_dist)
+
+    cmd_mri_surf2surf = [
+        mri_surf2surf,
+        "--srcsubject",
+        subject,
+        "--projabs",
+        surf_name,
+        proj_dist,
+        "--trgsubject",
+        subject,
+        "--trgsurfval",
+        outpath,
+        "--hemi",
+        hemi,
+    ]
+
+    if overwrite == False:
+        overwrite_check(outpath)
+
+    run_command(cmd_mri_surf2surf)
+
+    return outpath
+
+
 def prepare_reg(
     reg_in, reg_out, src=None, trg=None, invert=False, reg_type="LTA", overwrite=True
 ):

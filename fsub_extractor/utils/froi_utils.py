@@ -82,8 +82,8 @@ def project_roi(
                 out_lta_tmp,
                 "--hemi",
                 hemi,
-                "--projfrac",
-                "0.5",
+                "--projdist",
+                "-1",
             ]
 
         else:
@@ -98,8 +98,8 @@ def project_roi(
                 subject,
                 "--hemi",
                 hemi,
-                "--projfrac",
-                "0.5",
+                "--projdist",
+                "-1",
             ]
 
         ## Run the command

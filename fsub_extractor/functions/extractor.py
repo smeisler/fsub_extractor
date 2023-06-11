@@ -1,5 +1,6 @@
 import os.path as op
 import warnings
+from numpy import unique
 from fsub_extractor.utils.anat_utils import *
 from fsub_extractor.utils.system_utils import *
 from fsub_extractor.utils.froi_utils import *
@@ -24,6 +25,7 @@ def extractor(
     gmwmi_thresh,
     search_dist,
     search_type,
+    proj_dist,
     projfrac_params,
     sift2_weights,
     exclude_mask,
@@ -93,40 +95,7 @@ def extractor(
                 "The 'stop' paramater of projfrac-params must be greater than the 'start' parameter."
             )
 
-    # 2. Make sure ROI(s) exist and are the correct file types
-    if op.exists(roi1) == False:
-        raise Exception(f"ROI file {roi1} is not found on the system.")
-    if (
-        roi1[-7:] != ".nii.gz"
-        and roi1[-4:] != ".mgz"
-        and roi1[-6:] != ".label"
-        and roi1[-4:] != ".gii"
-    ):
-        raise Exception(
-            f"ROI file {roi1} is not of a supported file type (.nii.gz, .mgz, .label, .gii)."
-        )
-    if roi2 != None and op.exists(roi2) == False:
-        raise Exception(f"ROI file {roi2} is not found on the system.")
-    if (
-        roi2 != None
-        and roi2[-7:] != ".nii.gz"
-        and roi2[-4:] != ".mgz"
-        and roi2[-6:] != ".label"
-        and roi2[-4:] != ".gii"
-    ):
-        raise Exception(
-            f"ROI file {roi2} is not of a supported file type (.nii.gz, .mgz, .label, .gii)."
-        )
-
-    # 3. Make sure tract file is found and valid file type
-    if op.exists(tract) == False:
-        raise Exception(f"Tract file {tract} is not found on the system.")
-    if tract[-4:] not in [".trk", ".tck"]:
-        raise Exception(
-            f"Tract file {tract} is not of a supported file type (.trk, .tck)."
-        )
-
-    # 4. Check if gmwmi exists or can be created if needed
+    # 2. Check if gmwmi exists or can be created if needed
     gmwmi_path_check = op.join(
         out_dir, subject, "anat", f"{subject}_desc-gmwmi.nii.gz"
     )  # Where to look for pre-existing GMWMI
@@ -142,11 +111,7 @@ def extractor(
         )
         gmwmi = None
 
-    # 5. Define the registration
-    if fs2dwi != None and dwi2fs != None:
-        raise Exception(
-            "Please only supply EITHER a fs2dwi OR dwi2fs transformation, not both."
-        )
+    # 3. Define the registration
     if fs2dwi == None and dwi2fs == None:
         reg = None
         reg_invert = None
@@ -159,7 +124,7 @@ def extractor(
         reg_invert = True
     # Infer registration type if not supplied
     if reg != None and reg_type == None:
-        reg_fmt = reg[-4:]
+        reg_fmt = op.splitext(reg)[-1]
         if reg_fmt == ".lta":
             reg_type = "LTA"
         elif reg_fmt == ".txt":
@@ -174,7 +139,7 @@ def extractor(
             f"A registration type of {reg_type} was inferred based on the filename. If this is incorrect, please manually specify type with --reg-type flag."
         )
 
-    # 6. Make sure FS license is valid [TODO: HOW??]
+    # XX. Make sure FS license is valid [TODO: HOW??]
 
     # Make output folders if they do not exist, and define the naming convention
     anat_out_dir = op.join(out_dir, subject, "anat")
@@ -185,6 +150,24 @@ def extractor(
     os.makedirs(func_out_dir, exist_ok=True)
 
     # TODO: Parallelize stuff...
+
+    ### Project WM surface
+    print(f"\n Projecting white matter surface inwards by {abs(proj_dist)} mm\n")
+    proj_dist_inwards = proj_dist * -1
+    for hemi in unique(hemi_list):
+        surf_projected_fname_out = op.join(
+            anat_out_dir,
+            f"{subject}_hemi-{hemi}_space-FS_surf-white_desc-projected.surf.gii",
+        )
+        project_wm_surf(
+            subject,
+            fs_dir,
+            hemi,
+            proj_dist=proj_dist_inwards,
+            surf_name="white",
+            outpath=surf_projected_fname_out,
+            overwrite=overwrite,
+        )
 
     ### Create a GMWMI, intersect with ROI ###
     if skip_gmwmi_intersection == False and gmwmi == None:
@@ -306,7 +289,7 @@ def extractor(
         )
 
     ### Convert .trk to .tck if needed ###
-    if tract[-4:] == ".trk":
+    if op.splitext(tract)[-1] == ".trk":
         print("\n Converting .trk to .tck \n")
         tck_file = trk_to_tck(tract, dwi_out_dir, overwrite=overwrite)
     else:

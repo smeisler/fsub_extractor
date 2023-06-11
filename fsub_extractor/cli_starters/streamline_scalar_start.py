@@ -1,6 +1,7 @@
 import argparse
-import os
 import os.path as op
+from os import getcwd
+from pathlib import Path
 from fsub_extractor.functions.streamline_scalar import streamline_scalar
 
 # Add input arguments
@@ -18,9 +19,10 @@ def get_parser():
     parser.add_argument(
         "--tract",
         help="Path to tract file (.tck or .trk). Should be in the same space as the scalar map inputs.",
-        type=op.abspath,
+        type=validate_file,
         required=True,
         metavar=("/PATH/TO/TRACT.trk|.tck"),
+        action=CheckExt({".trk", ".tck"}),
     )
     parser.add_argument(
         "--scalar_paths",
@@ -56,7 +58,7 @@ def get_parser():
         "--n_points",
         "--n-points",
         help="Number of nodes to use in tract profile (default is 100)",
-        type=int,
+        type=check_positive,
         default=100,
         metavar=("POINTS"),
     )
@@ -84,6 +86,44 @@ def get_parser():
     )
 
     return parser
+
+
+# Check that files exist
+def validate_file(arg):
+    if (file := Path(arg)).is_file():
+        return op.abspath(file)
+    else:
+        raise FileNotFoundError(arg)
+
+
+# Function for checking file extensions
+def CheckExt(choices):
+    class Act(argparse.Action):
+        def __call__(self, parser, namespace, fname, option_string=None):
+            file_has_valid_ext = False
+            for choice in choices:
+                len_ext = len(choice)
+                if fname[(-1 * len_ext) :] == choice:
+                    file_has_valid_ext = True
+                    break
+
+            if file_has_valid_ext == False:
+                option_string = "({})".format(option_string) if option_string else ""
+                parser.error(
+                    "file doesn't end with one of {}{}".format(choices, option_string)
+                )
+            else:
+                setattr(namespace, self.dest, fname)
+
+    return Act
+
+
+# Check for positive values
+def check_positive(value):
+    value = int(value)
+    if value <= 0:
+        raise argparse.ArgumentTypeError("%s is not positive" % value)
+    return value
 
 
 def main():

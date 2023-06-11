@@ -1,6 +1,7 @@
 import argparse
-import os
 import os.path as op
+from os import getcwd
+from pathlib import Path
 from fsub_extractor.functions.extractor import extractor
 
 # Add input arguments
@@ -18,9 +19,10 @@ def get_parser():
     parser.add_argument(
         "--tract",
         help="Path to original tract file (.tck or .trk). Should be in DWI space.",
-        type=op.abspath,
+        type=validate_file,
         required=True,
         metavar=("/PATH/TO/TRACT.trk|.tck"),
+        action=CheckExt({".trk", ".tck"}),
     )
     parser.add_argument(
         "--tract-name",
@@ -31,9 +33,10 @@ def get_parser():
     parser.add_argument(
         "--roi1",
         help="First ROI file (.mgz, .label, .gii, or .nii.gz). File should be binary (1 in ROI, 0 elsewhere).",
-        type=op.abspath,
+        type=validate_file,
         required=True,
         metavar=("/PATH/TO/ROI1.mgz|.label|.gii|.nii.gz"),
+        action=CheckExt({".mgz", ".label", ".gii", ".nii.gz"}),
     )
     parser.add_argument(
         "--roi1-name",
@@ -44,8 +47,9 @@ def get_parser():
     parser.add_argument(
         "--roi2",
         help="Second ROI file (.mgz, .label, .gii, or .nii.gz). If specified, program will find streamlines connecting ROI1 and ROI2. File should be binary (1 in ROI, 0 elsewhere).",
-        type=op.abspath,
+        type=validate_file,
         metavar=("/PATH/TO/ROI2.mgz|.label|.gii|.nii.gz"),
+        action=CheckExt({".mgz", ".label", ".gii", ".nii.gz"}),
     )
     parser.add_argument(
         "--roi2-name",
@@ -66,17 +70,20 @@ def get_parser():
         choices=["lh", "rh", "lh,rh", "rh,lh"],
         metavar=("{lh|rh|lh,rh|rh,lh}"),
     )
-    parser.add_argument(
+    reg_group = parser.add_mutually_exclusive_group()
+    reg_group.add_argument(
         "--fs2dwi",
         help="Path to registration for mapping FreeSurfer-to-DWI space. Mutually exclusive with --dwi2fs.",
-        type=op.abspath,
+        type=validate_file,
         metavar=("/PATH/TO/FS2DWI-REG.lta|.txt|.mat"),
+        action=CheckExt({".lta", ".mat", ".txt"}),
     )
-    parser.add_argument(
+    reg_group.add_argument(
         "--dwi2fs",
         help="Path to registration for mapping DWI-to-FreeSurfer space. Mutually exclusive with --fs2dwi.",
-        type=op.abspath,
+        type=validate_file,
         metavar=("/PATH/TO/DWI2FS-REG.lta|.txt|.mat"),
+        action=CheckExt({".lta", ".mat", ".txt"}),
     )
     parser.add_argument(
         "--reg-type",
@@ -89,18 +96,21 @@ def get_parser():
     #    "--fs-license",
     #    help="Path to FreeSurfer license.",
     #    type=op.abspath,
+    #    metavar=("/PATH/TO/FS_LICENSE.txt),
+    #    action=CheckExt({".txt"}),
     # )  # TODO: MAKE REQUIRED LATER FOR CONTAINER?
     parser.add_argument(
         "--gmwmi",
         help="Path to GMWMI image (.nii.gz or .mif). If not specified or not found, it will be created from FreeSurfer inputs. Ignored if --skip-gmwmi-intersection is specified. Should be in DWI space.",
-        type=op.abspath,
+        type=validate_file,
         metavar=("/PATH/TO/GMWMI.nii.gz|.mif"),
+        action=CheckExt({".nii.gz", ".mif"}),
     )
     parser.add_argument(
         "--gmwmi-thresh",
         "--gmwmi_thresh",
         help="Threshold above which to binarize the GMWMI image. Default is 0.0",
-        type=float,
+        type=check_positive,
         default=0.0,
         metavar=("THRESHOLD"),
     )
@@ -108,7 +118,7 @@ def get_parser():
         "--search-dist",
         "--search_dist",
         help="Distance in mm to search from streamlines for ROIs (float). Default is 3.0 mm.",
-        type=float,
+        type=check_positive,
         default=3.0,
         metavar=("DISTANCE"),
     )
@@ -117,8 +127,15 @@ def get_parser():
         "--search_type",
         choices=["forward", "radial", "reverse"],
         help="Method of searching for streamlines. Default is forward.",
-        type=str,
         default="forward",
+    )
+    parser.add_argument(
+        "--proj-dist",
+        "--proj_dist",
+        help="How many millimeters to project white matter surface inwards (float). Default is 1.0. Disable by setting 0.0.",
+        default=0.5,
+        type=float,
+        metavar=("DISTANCE"),
     )
     parser.add_argument(
         "--projfrac-params",
@@ -131,29 +148,32 @@ def get_parser():
         "--sift2-weights",
         "--sift2_weights",
         help="Path to SIFT2 weights file. If supplied, the sum of weights will be output with streamline extraction.",
-        type=op.abspath,
-        metavar=("/PATH/TO/SIFT2_WEIGHTS.csv"),
+        type=validate_file,
+        metavar=("/PATH/TO/SIFT2_WEIGHTS.csv|.txt"),
+        action=CheckExt({".csv", ".txt"}),
     )
     parser.add_argument(
         "--exclude-mask",
         "--exclude_mask",
         help="Path to exclusion mask (.nii.gz or .mif). If specified, streamlines that enter this mask will be discarded. Must be in DWI space.",
-        type=op.abspath,
+        type=validate_file,
         metavar=("/PATH/TO/EXCLUDE_MASK.nii.gz|.mif"),
+        action=CheckExt({".nii.gz", ".mif"}),
     )
     parser.add_argument(
         "--include-mask",
         "--include_mask",
         help="Path to inclusion mask (.nii.gz or .mif). If specified, streamlines must intersect with this mask to be included (e.g., a waypoint ROI). Must be in DWI space.",
-        type=op.abspath,
+        type=validate_file,
         metavar=("/PATH/TO/INCLUDE_MASK.nii.gz|.mif"),
+        action=CheckExt({".nii.gz", ".mif"}),
     )
     parser.add_argument(
         "--out-dir",
         "--out_dir",
         help="Directory where outputs will be stored (a subject-folder will be created there if it does not exist). Default is current directory.",
         type=op.abspath,
-        default=os.getcwd(),
+        default=getcwd(),
         metavar=("/PATH/TO/OUTDIR/"),
     )
     parser.add_argument(
@@ -197,8 +217,9 @@ def get_parser():
         "--img-viz",
         "--img-viz",
         help="Path to image to plot in visualization (.nii.gz). Should be in DWI space.",
-        type=op.abspath,
+        type=validate_file,
         metavar=("/PATH/TO/BACKGROUND_IMG.nii.gz"),
+        action=CheckExt({".nii.gz"}),
     )
     viz_args.add_argument(
         "--orig-color",
@@ -235,6 +256,7 @@ def get_parser():
         default=0.7,
         type=float,
         metavar=("OPACITY"),
+        choices=[Range(0.0, 1.0)],
     )
     viz_args.add_argument(
         "--fsub-linewidth",
@@ -251,6 +273,7 @@ def get_parser():
         type=float,
         default=0.0,
         metavar=("OFFSET"),
+        choices=[Range(-1.0, 1.0)],
     )
     viz_args.add_argument(
         "--saggital-offset",
@@ -259,6 +282,7 @@ def get_parser():
         type=float,
         default=0.0,
         metavar=("OFFSET"),
+        choices=[Range(-1.0, 1.0)],
     )
     viz_args.add_argument(
         "--camera-angle",
@@ -269,6 +293,54 @@ def get_parser():
     )
 
     return parser
+
+
+# Check that files exist
+def validate_file(arg):
+    if (file := Path(arg)).is_file():
+        return op.abspath(file)
+    else:
+        raise FileNotFoundError(arg)
+
+
+# Function for checking file extensions
+def CheckExt(choices):
+    class Act(argparse.Action):
+        def __call__(self, parser, namespace, fname, option_string=None):
+            file_has_valid_ext = False
+            for choice in choices:
+                len_ext = len(choice)
+                if fname[(-1 * len_ext) :] == choice:
+                    file_has_valid_ext = True
+                    break
+
+            if file_has_valid_ext == False:
+                option_string = "({})".format(option_string) if option_string else ""
+                parser.error(
+                    "file doesn't end with one of {}{}".format(choices, option_string)
+                )
+            else:
+                setattr(namespace, self.dest, fname)
+
+    return Act
+
+
+# For checking ranges of inputs
+class Range(object):
+    def __init__(self, start, end):
+        self.start = start
+        self.end = end
+
+    def __eq__(self, other):
+        return self.start <= other <= self.end
+
+
+# Check for positive values
+def check_positive(value):
+    value = float(value)
+    if value <= 0:
+        raise argparse.ArgumentTypeError("%s is not positive" % value)
+    return value
 
 
 def main():
@@ -295,6 +367,7 @@ def main():
         gmwmi_thresh=args.gmwmi_thresh,
         search_dist=str(args.search_dist),
         search_type=str(args.search_type),
+        proj_dist=args.proj_dist,
         projfrac_params=args.projfrac_params,
         sift2_weights=args.sift2_weights,
         exclude_mask=args.exclude_mask,
