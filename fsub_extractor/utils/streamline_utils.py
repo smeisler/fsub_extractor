@@ -43,6 +43,7 @@ def extract_tck_mrtrix(
     sift2_weights=None,
     exclude_mask=None,
     include_mask=None,
+    streamline_mask=None,
     overwrite=True,
 ):
     """Uses MRtrix tools to extract the TCK file that connects to the ROI(s)
@@ -148,6 +149,8 @@ def extract_tck_mrtrix(
             cmd_tckedit += ["-exclude", exclude_mask]
         if include_mask != None:
             cmd_tckedit += ["-include", include_mask]
+        if streamline_mask != None:
+            cmd_tckedit += ["-mask", streamline_mask]
         if overwrite == False:
             overwrite_check(tckedit_out)
         else:

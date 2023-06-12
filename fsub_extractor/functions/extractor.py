@@ -30,6 +30,7 @@ def extractor(
     sift2_weights,
     exclude_mask,
     include_mask,
+    streamline_mask,
     out_dir,
     overwrite,
     skip_roi_projection,
@@ -194,7 +195,7 @@ def extractor(
         if (
             reg_type != "LTA" or reg_invert == True
         ):  # We only need to prepare if doing an invert or working with a non-LTA file
-            reg_transformed = op.join(anat_out_dir, f"{subject}_xfm-fs2dwi.lta")
+            reg_transformed = op.join(anat_out_dir, f"{subject}_mode-xfm-fs2dwi.lta")
             src = op.join(fs_sub_dir, "mri", "orig.mgz")
             trg = gmwmi_bin
             reg = prepare_reg(
@@ -308,6 +309,7 @@ def extractor(
         sift2_weights=sift2_weights,
         exclude_mask=exclude_mask,
         include_mask=include_mask,
+        streamline_mask=streamline_mask,
         overwrite=overwrite,
     )
     print("\n The extracted tract is located at " + extracted_tck + ".\n")

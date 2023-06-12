@@ -169,6 +169,14 @@ def get_parser():
         action=CheckExt({".nii.gz", ".mif"}),
     )
     parser.add_argument(
+        "--streamline-mask",
+        "--streamline_mask",
+        help="Path to streamline mask (.nii.gz or .mif). If specified, streamlines exiting this mask will be truncated. Must be in DWI space.",
+        type=validate_file,
+        metavar=("/PATH/TO/STREAMLINE_MASK.nii.gz|.mif"),
+        action=CheckExt({".nii.gz", ".mif"}),
+    )
+    parser.add_argument(
         "--out-dir",
         "--out_dir",
         help="Directory where outputs will be stored (a subject-folder will be created there if it does not exist). Default is current directory.",
@@ -372,6 +380,7 @@ def main():
         sift2_weights=args.sift2_weights,
         exclude_mask=args.exclude_mask,
         include_mask=args.include_mask,
+        streamline_mask=args.streamline_mask,
         out_dir=args.out_dir,
         overwrite=args.overwrite,
         skip_roi_projection=args.skip_roi_projection,
