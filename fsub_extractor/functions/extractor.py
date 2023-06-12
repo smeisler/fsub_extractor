@@ -151,23 +151,24 @@ def extractor(
 
     # TODO: Parallelize stuff...
 
-    ### Project WM surface
-    print(f"\n Projecting white matter surface inwards by {abs(proj_dist)} mm\n")
-    proj_dist_inwards = proj_dist * -1
-    for hemi in unique(hemi_list):
-        surf_projected_fname_out = op.join(
-            anat_out_dir,
-            f"{subject}_hemi-{hemi}_space-FS_surf-white_desc-projected.surf.gii",
-        )
-        project_wm_surf(
-            subject,
-            fs_dir,
-            hemi,
-            proj_dist=proj_dist_inwards,
-            surf_name="white",
-            outpath=surf_projected_fname_out,
-            overwrite=overwrite,
-        )
+    ### Project WM surface [TODO: how to do this right?]
+    if False:
+        print(f"\n Projecting white matter surface inwards by {abs(proj_dist)} mm\n")
+        proj_dist_inwards = proj_dist * -1
+        for hemi in unique(hemi_list):
+            surf_projected_fname_out = op.join(
+                anat_out_dir,
+                f"{subject}_hemi-{hemi}_space-FS_surf-white_desc-projected.surf.gii",
+            )
+            project_wm_surf(
+                subject,
+                fs_dir,
+                hemi,
+                proj_dist=proj_dist_inwards,
+                surf_name="white",
+                outpath=surf_projected_fname_out,
+                overwrite=overwrite,
+            )
 
     ### Create a GMWMI, intersect with ROI ###
     if skip_gmwmi_intersection == False and gmwmi == None:
