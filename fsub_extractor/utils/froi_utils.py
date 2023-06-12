@@ -49,64 +49,24 @@ def project_roi(
         # Define output name for surface file
         roi_surf = op.join(outdir, f"{subject}_rec-vol2surf_desc-{roi_name}.gii")
 
-        ### Different ways to do it based on whether a FS-to-DWI registration was specified
-        if fs_to_dwi_lta != None:
-            ## Start by making a LTA file that includes the roi as a file
-            out_lta_tmp = fs_to_dwi_lta.replace("fs2dwi", "tmp")
-            lta_convert = find_program("lta_convert")
-            cmd_lta_convert = [
-                lta_convert,
-                "--inlta",
-                fs_to_dwi_lta,
-                "--outlta",
-                out_lta_tmp,
-                "--trg",
-                op.join(fs_dir, subject, "mri", "orig.mgz"),
-                "--src",
-                roi_in,
-                "--invert",
-            ]
-            run_command(cmd_lta_convert)
-
-            # Little hack for FS to find the subject's cortical ribbon
-            os.environ["SUBJECTS_DIR"] = op.join(fs_dir, subject)
-
-            mri_vol2surf = find_program("mri_vol2surf")
-            cmd_mri_vol2surf = [
-                mri_vol2surf,
-                "--src",
-                roi_in,
-                "--out",
-                roi_surf,
-                "--srcreg",
-                out_lta_tmp,
-                "--hemi",
-                hemi,
-                "--projfrac",
-                "0.5",
-            ]
-
-        else:
-            # Use identity/subject for registration
-            cmd_mri_vol2surf = [
-                mri_vol2surf,
-                "--src",
-                roi_in,
-                "--out",
-                roi_surf,
-                "--regheader",
-                subject,
-                "--hemi",
-                hemi,
-                "--projfrac",
-                "0.5",
-            ]
+        mri_vol2surf = find_program("mri_vol2surf")
+        # Use identity/subject for registration
+        cmd_mri_vol2surf = [
+            mri_vol2surf,
+            "--src",
+            roi_in,
+            "--out",
+            roi_surf,
+            "--regheader",
+            subject,
+            "--hemi",
+            hemi,
+            # "--projdist",
+            # "-1",
+        ]
 
         ## Run the command
         run_command(cmd_mri_vol2surf)
-        os.environ[
-            "SUBJECTS_DIR"
-        ] = fs_dir  # Reset SUBJECTS_DIR environment variable afterwards
 
     else:
         roi_surf = roi_in
