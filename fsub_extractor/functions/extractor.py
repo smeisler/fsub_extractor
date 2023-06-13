@@ -10,6 +10,7 @@ from fsub_extractor.utils.streamline_utils import *
 def extractor(
     subject,
     tract,
+    generate,
     tract_name,
     roi1,
     roi1_name,
@@ -25,7 +26,6 @@ def extractor(
     gmwmi_thresh,
     search_dist,
     search_type,
-    proj_dist,
     projfrac_params,
     sift2_weights,
     exclude_mask,
@@ -35,6 +35,9 @@ def extractor(
     overwrite,
     skip_roi_projection,
     skip_gmwmi_intersection,
+    wmfod,
+    n_streamlines,
+    tckgen_params,
     make_viz,
     interactive_viz,
     img_viz,
@@ -112,7 +115,7 @@ def extractor(
         )
         gmwmi = None
 
-    # 3. Define the registration
+    # 3. Define and prepare registration
     if fs2dwi == None and dwi2fs == None:
         reg = None
         reg_invert = None
@@ -125,19 +128,28 @@ def extractor(
         reg_invert = True
     # Infer registration type if not supplied
     if reg != None and reg_type == None:
-        reg_fmt = op.splitext(reg)[-1]
-        if reg_fmt == ".lta":
-            reg_type = "LTA"
-        elif reg_fmt == ".txt":
-            reg_type = "ITK"
-        elif reg_fmt == ".mat":
-            reg_type = "FSL"
+        with open(reg) as f:
+            reg_first_line = f.readlines()[0]
+        f.close()
+        if "command_history" in reg_first_line:
+            reg_type = "mrtrix"
         else:
-            raise Exception(
-                f"Registration format must be either .lta (LTA), .txt (ITK/ANTS), or .mat (FSL). A format of {reg_fmt} was supplied."
-            )
+            reg_type = "itk"
         warnings.warn(
-            f"A registration type of {reg_type} was inferred based on the filename. If this is incorrect, please manually specify type with --reg-type flag."
+            f"A registration type of {reg_type} was inferred based on the contents of the file. If this is incorrect, please manually specify type with --reg-type flag."
+        )
+    # Prepare registration, if needed
+    if reg != None and reg_type != "mrtrix":
+        if reg_invert:
+            mrtrix_reg_out = op.join(
+                anat_out_dir, f"{subject}_from-DWI_to-FS_mode-image_desc-MRTrix_xfm.txt"
+            )
+        else:
+            mrtrix_reg_out = op.join(
+                anat_out_dir, f"{subject}_from-FS_to-DWI_mode-image_desc-MRTrix_xfm.txt"
+            )
+        reg = convert_to_mrtrix_reg(
+            reg, mrtrix_reg_out, reg_in_type=reg_type, overwrite=overwrite
         )
 
     # XX. Make sure FS license is valid [TODO: HOW??]
@@ -151,25 +163,6 @@ def extractor(
     os.makedirs(func_out_dir, exist_ok=True)
 
     # TODO: Parallelize stuff...
-
-    ### Project WM surface [TODO: how to do this right?]
-    if False:
-        print(f"\n Projecting white matter surface inwards by {abs(proj_dist)} mm\n")
-        proj_dist_inwards = proj_dist * -1
-        for hemi in unique(hemi_list):
-            surf_projected_fname_out = op.join(
-                anat_out_dir,
-                f"{subject}_hemi-{hemi}_space-FS_surf-white_desc-projected.surf.gii",
-            )
-            project_wm_surf(
-                subject,
-                fs_dir,
-                hemi,
-                proj_dist=proj_dist_inwards,
-                surf_name="white",
-                outpath=surf_projected_fname_out,
-                overwrite=overwrite,
-            )
 
     ### Create a GMWMI, intersect with ROI ###
     if skip_gmwmi_intersection == False and gmwmi == None:
@@ -190,24 +183,6 @@ def extractor(
             overwrite=overwrite,
         )
 
-    ### Prepare registration, if needed
-    if reg != None:
-        if (
-            reg_type != "LTA" or reg_invert == True
-        ):  # We only need to prepare if doing an invert or working with a non-LTA file
-            reg_transformed = op.join(anat_out_dir, f"{subject}_mode-xfm-fs2dwi.lta")
-            src = op.join(fs_sub_dir, "mri", "orig.mgz")
-            trg = gmwmi_bin
-            reg = prepare_reg(
-                reg_in=reg,
-                reg_out=reg_transformed,
-                src=src,
-                trg=trg,
-                invert=reg_invert,
-                reg_type=reg_type,
-                overwrite=overwrite,
-            )
-
     ### Set flag for whether two rois were passed in ###
     if roi2 != None:
         two_rois = True
@@ -224,13 +199,17 @@ def extractor(
             subject=subject,
             hemi=hemi_list[0],
             outdir=func_out_dir,
-            fs_to_dwi_lta=reg,
             projfrac_params=projfrac_params_list,
             overwrite=overwrite,
         )
     else:
         print(f"\n Skipping {roi1_name} projection \n")
         roi1_projected = roi1
+    if reg != None:
+        registed_roi_name = roi_in.replace("space-FS", "space-DWI")
+        roi1_projected = register_to_dwi(
+            roi_in, registed_roi_name, reg, interp="nearest", overwrite=True
+        )
     if skip_gmwmi_intersection == False:
         print(f"\n Intersecting {roi1_name} with GMWMI \n")
         roi1_intersected = intersect_gmwmi(
@@ -242,6 +221,7 @@ def extractor(
         )
     else:
         roi1_intersected = roi1_projected
+    ### TODO: Register ROI to DWI space
 
     ### Process ROI2 the same way if specified ###
     if two_rois == False:
@@ -260,7 +240,7 @@ def extractor(
                 subject=subject,
                 hemi=hemi_list[-1],
                 outdir=func_out_dir,
-                fs_to_dwi_lta=reg,
+                # fs_to_dwi_lta=reg,
                 projfrac_params=projfrac_params_list,
                 overwrite=overwrite,
             )
@@ -290,78 +270,93 @@ def extractor(
             overwrite=overwrite,
         )
 
-    ### Convert .trk to .tck if needed ###
-    if op.splitext(tract)[-1] == ".trk":
-        print("\n Converting .trk to .tck \n")
-        tck_file = trk_to_tck(tract, dwi_out_dir, overwrite=overwrite)
+    raise ("TESTING STOPS HERE BUDDY")
+    ### Extract FSuB from tractogram
+    if generate == False:
+        ### Convert .trk to .tck if needed ###
+        if op.splitext(tract)[-1] == ".trk":
+            print("\n Converting .trk to .tck \n")
+            tck_file = trk_to_tck(tract, dwi_out_dir, overwrite=overwrite)
+        else:
+            tck_file = tract
+
+        ### Run MRtrix Tract Extraction ###
+        print("\n Extracing the sub-bundle \n")
+        extracted_tck = extract_tck_mrtrix(
+            tck_file,
+            rois_in,
+            outpath_base=op.join(dwi_out_dir, f"{subject}_{tract_name}_{rois_name}"),
+            two_rois=two_rois,
+            search_dist=search_dist,
+            search_type=search_type,
+            sift2_weights=sift2_weights,
+            exclude_mask=exclude_mask,
+            include_mask=include_mask,
+            streamline_mask=streamline_mask,
+            overwrite=overwrite,
+        )
+        print("\n The extracted tract is located at " + extracted_tck + ".\n")
+
+        ### Visualize the outputs ####
+        if make_viz:
+            from fsub_extractor.utils.fury_viz import visualize_sub_bundles
+
+            # Convert color strings to lists
+            orig_color_list = [float(color) for color in orig_color.split(",")]
+            fsub_color_list = [float(color) for color in fsub_color.split(",")]
+            roi1_color_list = [float(color) for color in roi1_color.split(",")]
+            roi2_color_list = [float(color) for color in roi2_color.split(",")]
+
+            # Set reference / background image if it is specified
+            if img_viz == None:
+                ref_anat = gmwmi
+                show_anat = False
+            else:
+                ref_anat = img_viz
+                show_anat = True
+
+            # Make a picture for each hemisphere passed in, if saggital view
+            if hemi == None:
+                hemi_list = ["lh"]
+            else:
+                hemi_list = hemi.split(
+                    ","
+                )  # TODO: redundant to define twice, already defined above if not skip projection
+
+            visualize_sub_bundles(
+                orig_bundle=tck_file,
+                fsub_bundle=extracted_tck,
+                ref_anat=ref_anat,
+                fname=op.join(
+                    dwi_out_dir,
+                    f"{subject}_hemi-{hemi_list[0]}_{tract_name}_{rois_name}_desc-visualization.png",
+                ),
+                roi1=roi1_intersected,
+                roi2=roi2_intersected,
+                orig_color=orig_color_list,
+                fsub_color=fsub_color_list,
+                roi1_color=roi1_color_list,
+                roi2_color=roi2_color_list,
+                roi_opacity=roi_opacity,
+                fsub_linewidth=fsub_linewidth,
+                interactive=interactive_viz,
+                show_anat=show_anat,
+                axial_offset=axial_offset,
+                saggital_offset=saggital_offset,
+                camera_angle=camera_angle,
+                hemi=hemi_list[0],
+            )
+
+    ### Seed and generate FSuB instead
     else:
-        tck_file = tract
-
-    ### Run MRtrix Tract Extraction ###
-    print("\n Extracing the sub-bundle \n")
-    extracted_tck = extract_tck_mrtrix(
-        tck_file,
-        rois_in,
-        outpath_base=op.join(dwi_out_dir, f"{subject}_{tract_name}_{rois_name}"),
-        two_rois=two_rois,
-        search_dist=search_dist,
-        search_type=search_type,
-        sift2_weights=sift2_weights,
-        exclude_mask=exclude_mask,
-        include_mask=include_mask,
-        streamline_mask=streamline_mask,
-        overwrite=overwrite,
-    )
-    print("\n The extracted tract is located at " + extracted_tck + ".\n")
-
-    ### Visualize the outputs ####
-    if make_viz:
-        from fsub_extractor.utils.fury_viz import visualize_sub_bundles
-
-        # Convert color strings to lists
-        orig_color_list = [float(color) for color in orig_color.split(",")]
-        fsub_color_list = [float(color) for color in fsub_color.split(",")]
-        roi1_color_list = [float(color) for color in roi1_color.split(",")]
-        roi2_color_list = [float(color) for color in roi2_color.split(",")]
-
-        # Set reference / background image if it is specified
-        if img_viz == None:
-            ref_anat = gmwmi
-            show_anat = False
-        else:
-            ref_anat = img_viz
-            show_anat = True
-
-        # Make a picture for each hemisphere passed in, if saggital view
-        if hemi == None:
-            hemi_list = ["lh"]
-        else:
-            hemi_list = hemi.split(
-                ","
-            )  # TODO: redundant to define twice, already defined above if not skip projection
-
-        visualize_sub_bundles(
-            orig_bundle=tck_file,
-            fsub_bundle=extracted_tck,
-            ref_anat=ref_anat,
-            fname=op.join(
-                dwi_out_dir,
-                f"{subject}_hemi-{hemi_list[0]}_{tract_name}_{rois_name}_desc-visualization.png",
-            ),
-            roi1=roi1_intersected,
-            roi2=roi2_intersected,
-            orig_color=orig_color_list,
-            fsub_color=fsub_color_list,
-            roi1_color=roi1_color_list,
-            roi2_color=roi2_color_list,
-            roi_opacity=roi_opacity,
-            fsub_linewidth=fsub_linewidth,
-            interactive=interactive_viz,
-            show_anat=show_anat,
-            axial_offset=axial_offset,
-            saggital_offset=saggital_offset,
-            camera_angle=camera_angle,
-            hemi=hemi_list[0],
+        ### Make a outer surface exclusion mask to make tractography more efficient
+        print(f"\n Getting pial surface")
+        get_pial_surf(
+            subject,
+            fs_dir,
+            surf_name="pial",
+            anat_out_dir=anat_out_dir,
+            overwrite=overwrite,
         )
 
     print("\n DONE \n")

@@ -10,11 +10,10 @@ def project_roi(
     subject,
     hemi,
     outdir,
-    fs_to_dwi_lta=None,
-    projfrac_params=[-2, 0, 0.05],
+    projfrac_params=[-1, 0, 0.05],
     overwrite=True,
 ):
-    """Projects input ROI into the white matter. If volumetric ROI is input, starts by mapping it to the surface.
+    """Makes volumetric file of ROI mapped on white matter surface
 
     Parameters
     ==========
@@ -47,7 +46,9 @@ def project_roi(
         print("Using volumetric ROI projection pipeline")
 
         # Define output name for surface file
-        roi_surf = op.join(outdir, f"{subject}_rec-vol2surf_desc-{roi_name}.gii")
+        roi_surf = op.join(
+            outdir, f"{subject}_rec-vol2surf_space-FS_desc-{roi_name}.func.gii"
+        )
 
         mri_vol2surf = find_program("mri_vol2surf")
         # Use identity/subject for registration
@@ -61,8 +62,6 @@ def project_roi(
             subject,
             "--hemi",
             hemi,
-            # "--projdist",
-            # "-1",
         ]
 
         ## Run the command
@@ -73,7 +72,9 @@ def project_roi(
 
     if roi_surf[-6:] == ".label":
         print("Projecting FS .label file")
-        roi_vol = op.join(outdir, f"{subject}_rec-label2vol_desc-{roi_name}.nii.gz")
+        roi_vol = op.join(
+            outdir, f"{subject}_rec-label2vol_space-FS_desc-{roi_name}.nii.gz"
+        )
         mri_label2vol = find_program("mri_label2vol")
         cmd_mri_label2vol = [
             mri_label2vol,
@@ -86,7 +87,7 @@ def project_roi(
             "--hemi",
             hemi,
             "--temp",
-            op.join(fs_dir, subject, "mri", "aseg.mgz"),
+            op.join(fs_dir, subject, "mri", "orig.mgz"),  # NOTE: was aseg.mgz
             "--proj",
             "frac",
             projfrac_params[0],
@@ -100,23 +101,43 @@ def project_roi(
 
     if roi_surf[-4:] == ".mgz" or roi_surf[-4:] == ".gii":
         print("Projecting FS .mgz/.gii surface file")
-        roi_vol = op.join(outdir, f"{subject}_rec-surf2vol_desc-{roi_name}.nii.gz")
+        roi_vol = op.join(
+            outdir, f"{subject}_rec-surf2vol_space-FS_desc-{roi_name}.nii.gz"
+        )
         mri_surf2vol = find_program("mri_surf2vol")
+        # cmd_mri_surf2vol = [
+        #    mri_surf2vol,
+        #    "--so",
+        #    op.join(fs_dir, subject, "surf", f"{hemi}.white"),
+        #    roi_surf,
+        #    "--o",
+        #    roi_vol,
+        #    "--subject",
+        #    subject,
+        #    "--sd",
+        #    fs_dir,
+        # ]
         cmd_mri_surf2vol = [
             mri_surf2vol,
-            "--so",
-            op.join(fs_dir, subject, "surf", f"{hemi}.white"),
+            "--surfval",
             roi_surf,
-            "--o",
-            roi_vol,
+            "--hemi",
+            hemi,
+            "--surf",
+            "white",
+            "--fill-projfrac",
+            projfrac_params[0],
+            projfrac_params[1],
+            projfrac_params[2],
             "--subject",
             subject,
-            "--sd",
-            fs_dir,
+            "--identity",
+            subject,
+            "--template",
+            op.join(fs_dir, subject, "mri", "orig.mgz"),
+            "--o",
+            roi_vol,
         ]
-        if fs_to_dwi_lta != None:
-            cmd_mri_surf2vol.insert(4, fs_to_dwi_lta)
-            cmd_mri_surf2vol.insert(4, "--lta")
 
         run_command(cmd_mri_surf2vol)
 
@@ -205,5 +226,55 @@ def merge_rois(roi1, roi2, out_file, overwrite=True):
 
     run_command(cmd_mrcalc_mult)
     run_command(cmd_mrcalc_merge)
+
+    return out_file
+
+
+def register_to_dwi(roi_in, out_file, mrtrix_xfm, interp="nearest", overwrite=True):
+    """Uses MRTrix 'mrtransform' to register an ROI
+
+    Parameters
+    ==========
+    roi_in: str
+            abspath to the ROI in
+    out_file: str
+            abspath of filename to save output registered ROI file
+    mrtrix_xfm: str
+            abspath to transform in mrtrix-readable format
+    interp: str
+            method of interpolation (we default to 'nearest' for masks)
+    overwrite: bool
+            Whether to allow overwriting outputs
+
+    Outputs
+    =======
+    out_file: str
+            abspath of registered ROI
+
+    """
+
+    mrtransform = find_program("mrtransform")
+
+    cmd_mrtransform = [
+        mrtransform,
+        "-strides",
+        "-1",
+        "-2",
+        "3",
+        "-linear",
+        mrtrix_xfm,
+        "-interp",
+        interp,
+        roi_in,
+        out_file,
+    ]
+
+    # Abort if file already exists and overwriting not allowed
+    if overwrite == False:
+        overwrite_check(outpath)
+    else:
+        cmd_mrtransform += ["-force"]
+
+    run_command(mrtransform)
 
     return out_file

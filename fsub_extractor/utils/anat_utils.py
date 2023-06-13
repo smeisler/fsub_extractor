@@ -117,17 +117,15 @@ def binarize_image(img, outfile, threshold=0, comparison="gt", overwrite=True):
     return outfile
 
 
-def project_wm_surf(
+def get_pial_surf(
     subject,
     fs_dir,
-    hemi,
-    proj_dist=-1.0,
-    surf_name="white",
-    outpath=None,
+    surf_name="pial",
+    anat_out_dir=os.getcwd(),
     overwrite=True,
 ):
 
-    """Makes a new surface projected into white matter
+    """Returns volumetric mask of pial surface
 
     Parameters
     ==========
@@ -135,10 +133,6 @@ def project_wm_surf(
             Subject name as found in FreeSurfer subjects directory
     fs_dir: str
             Path to FreeSurfer subjects directory
-    hemi: str
-            Hemisphere in FreeSurfer 'lh'/'rh' notatin
-    proj_dist: float/int
-            Distance in mm to project. Negative is into white matter (Default is -1.0)
 
     Outputs
     =======
@@ -148,44 +142,100 @@ def project_wm_surf(
 
     ### Tell FreeSurfer where subject data is
     os.environ["SUBJECTS_DIR"] = fs_dir
-    surf_name = "white"
 
-    ### Define the mri_surf2surf command
-    mri_surf2surf = find_program("mri_surf2surf")
+    ### Define the mri_surf2surf command, recreat pial surface in each hemisphere
+    mri_surf2vol = find_program("mri_surf2vol")
 
-    # If no outpath, save output in FreeSurfer "surf" folder
-    if outpath == None:
-        outpath = op.join(
-            fs_dir, subject, "surf", f"{hemi}.{surf_name}.projabs_{str(proj_dist)}mm"
+    for hemi in ["lh", "rh"]:
+        outpath_hemi = op.join(
+            anat_out_dir, f"{subject}_surf-{surf_name}_hemi-{hemi}_space-FS.nii.gz"
         )
 
-    # Convert proj_dist to string if needed
-    proj_dist = str(proj_dist)
+        cmd_mri_surf2vol = [
+            mri_surf2vol,
+            "--subject",
+            subject,
+            "--identity",
+            subject,
+            "--template",
+            op.join(fs_dir, subject, "mri", "orig.mgz"),
+            "--mkmask",
+            "--hemi",
+            hemi,
+            "--surf",
+            surf_name,
+            "--o",
+            outpath_hemi,
+        ]
 
-    cmd_mri_surf2surf = [
-        mri_surf2surf,
-        "--srcsubject",
-        subject,
-        "--projabs",
-        surf_name,
-        proj_dist,
-        "--trgsubject",
-        subject,
-        "--trgsurfval",
-        outpath,
-        "--hemi",
-        hemi,
+        if overwrite == False:
+            overwrite_check(outpath_hemi)
+
+        run_command(cmd_mri_surf2vol)
+
+    ### Merge the images into one mask
+    outpath_merged = op.join(
+        anat_out_dir, f"{subject}_surf-{surf_name}_hemi-combined_space-FS.nii.gz"
+    )
+    mrcalc = find_program("mrcalc")
+    cmd_mrcalc = [
+        mrcalc,
+        outpath_hemi,
+        outpath_hemi.replace("hemi-rh", "hemi-lh"),
+        "-max",
+        outpath_merged,
+    ]
+    if overwrite:
+        cmd_mrcalc += ["-force"]
+    else:
+        overwrite_check(outpath_merged)
+
+    run_command(cmd_mrcalc)
+
+    return outpath_merged
+
+
+def convert_to_mrtrix_reg(reg_in, mrtrix_reg_out, reg_in_type="itk", overwrite=True):
+    """Makes an LTA convert file for mapping between FreeSurfer and DWI space
+
+    Parameters
+    ==========
+    reg_in: str
+            Path to input registation
+    mrtrix_reg_out: str
+            Where to save output registation
+    reg_type: str
+            Format of input registration. Currently only ANTs/ITK is supported.
+    overwrite: bool
+            Whether to allow overwriting outputs
+
+    Outputs
+    =======
+    Function MRTrix-readable registration file
+    """
+
+    if reg_type == "itk":
+        reg_fmt_string = "itk_import"
+
+    # Define the lta_convert command
+    transformconvert = find_program("transform_convert")
+    cmd_transformconvert = [
+        reg_in,
+        reg_fmt_string,
+        mrtrix_reg_out,
     ]
 
-    if overwrite == False:
-        overwrite_check(outpath)
+    if overwrite:
+        cmd_transformconvert += ["-force"]
+    else:
+        overwrite_check(mrtrix_reg_out)
 
-    run_command(cmd_mri_surf2surf)
+    run_command(cmd_transformconvert)
 
-    return outpath
+    return mrtrix_reg_out
 
 
-def prepare_reg(
+def prepare_reg_old(
     reg_in, reg_out, src=None, trg=None, invert=False, reg_type="LTA", overwrite=True
 ):
     """Makes an LTA convert file for mapping between FreeSurfer and DWI space
