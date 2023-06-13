@@ -214,12 +214,13 @@ def convert_to_mrtrix_reg(reg_in, mrtrix_reg_out, reg_in_type="itk", overwrite=T
     Function MRTrix-readable registration file
     """
 
-    if reg_type == "itk":
+    if reg_in_type == "itk":
         reg_fmt_string = "itk_import"
 
     # Define the lta_convert command
-    transformconvert = find_program("transform_convert")
+    transformconvert = find_program("transformconvert")
     cmd_transformconvert = [
+        transformconvert,
         reg_in,
         reg_fmt_string,
         mrtrix_reg_out,

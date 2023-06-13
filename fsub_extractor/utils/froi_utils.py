@@ -230,7 +230,9 @@ def merge_rois(roi1, roi2, out_file, overwrite=True):
     return out_file
 
 
-def register_to_dwi(roi_in, out_file, mrtrix_xfm, interp="nearest", overwrite=True):
+def register_to_dwi(
+    roi_in, out_file, mrtrix_xfm, invert=False, interp="nearest", overwrite=True
+):
     """Uses MRTrix 'mrtransform' to register an ROI
 
     Parameters
@@ -258,9 +260,7 @@ def register_to_dwi(roi_in, out_file, mrtrix_xfm, interp="nearest", overwrite=Tr
     cmd_mrtransform = [
         mrtransform,
         "-strides",
-        "-1",
-        "-2",
-        "3",
+        "-1 -2 3",
         "-linear",
         mrtrix_xfm,
         "-interp",
@@ -269,12 +269,15 @@ def register_to_dwi(roi_in, out_file, mrtrix_xfm, interp="nearest", overwrite=Tr
         out_file,
     ]
 
+    if invert:
+        cmd_mrtransform += ["-inverse"]
+
     # Abort if file already exists and overwriting not allowed
     if overwrite == False:
         overwrite_check(outpath)
     else:
         cmd_mrtransform += ["-force"]
 
-    run_command(mrtransform)
+    run_command(cmd_mrtransform)
 
     return out_file

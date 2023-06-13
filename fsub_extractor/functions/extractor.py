@@ -115,7 +115,15 @@ def extractor(
         )
         gmwmi = None
 
-    # 3. Define and prepare registration
+    # Make output folders if they do not exist, and define the naming convention
+    anat_out_dir = op.join(out_dir, subject, "anat")
+    dwi_out_dir = op.join(out_dir, subject, "dwi")
+    func_out_dir = op.join(out_dir, subject, "func")
+    os.makedirs(anat_out_dir, exist_ok=True)
+    os.makedirs(dwi_out_dir, exist_ok=True)
+    os.makedirs(func_out_dir, exist_ok=True)
+
+    # Define and prepare registration
     if fs2dwi == None and dwi2fs == None:
         reg = None
         reg_invert = None
@@ -136,7 +144,7 @@ def extractor(
         else:
             reg_type = "itk"
         warnings.warn(
-            f"A registration type of {reg_type} was inferred based on the contents of the file. If this is incorrect, please manually specify type with --reg-type flag."
+            f"A registration type of '{reg_type}' was inferred based on the contents of the file. If this is incorrect, please manually specify type with the '--reg-type' flag."
         )
     # Prepare registration, if needed
     if reg != None and reg_type != "mrtrix":
@@ -153,14 +161,6 @@ def extractor(
         )
 
     # XX. Make sure FS license is valid [TODO: HOW??]
-
-    # Make output folders if they do not exist, and define the naming convention
-    anat_out_dir = op.join(out_dir, subject, "anat")
-    dwi_out_dir = op.join(out_dir, subject, "dwi")
-    func_out_dir = op.join(out_dir, subject, "func")
-    os.makedirs(anat_out_dir, exist_ok=True)
-    os.makedirs(dwi_out_dir, exist_ok=True)
-    os.makedirs(func_out_dir, exist_ok=True)
 
     # TODO: Parallelize stuff...
 
@@ -206,9 +206,14 @@ def extractor(
         print(f"\n Skipping {roi1_name} projection \n")
         roi1_projected = roi1
     if reg != None:
-        registed_roi_name = roi_in.replace("space-FS", "space-DWI")
+        registed_roi_name = roi1_projected.replace("space-FS", "space-DWI")
         roi1_projected = register_to_dwi(
-            roi_in, registed_roi_name, reg, interp="nearest", overwrite=True
+            roi1_projected,
+            registed_roi_name,
+            reg,
+            invert=reg_invert,
+            interp="nearest",
+            overwrite=True,
         )
     if skip_gmwmi_intersection == False:
         print(f"\n Intersecting {roi1_name} with GMWMI \n")
@@ -240,13 +245,22 @@ def extractor(
                 subject=subject,
                 hemi=hemi_list[-1],
                 outdir=func_out_dir,
-                # fs_to_dwi_lta=reg,
                 projfrac_params=projfrac_params_list,
                 overwrite=overwrite,
             )
         else:
             print(f"\n Skipping {roi2_name} projection \n")
             roi2_projected = roi2
+        if reg != None:
+            registed_roi_name = roi2_projected.replace("space-FS", "space-DWI")
+            roi2_projected = register_to_dwi(
+                roi2_projected,
+                registed_roi_name,
+                reg,
+                invert=reg_invert,
+                interp="nearest",
+                overwrite=True,
+            )
         if skip_gmwmi_intersection == False:
             print(f"\n Intersecting {roi2_name} with GMWMI \n")
             roi2_intersected = intersect_gmwmi(
