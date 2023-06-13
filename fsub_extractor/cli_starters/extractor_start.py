@@ -19,14 +19,14 @@ def get_parser():
     extract_or_generate = parser.add_mutually_exclusive_group(required=True)
     extract_or_generate.add_argument(
         "--tract",
-        help="Path to original tract file (.tck or .trk). Should be in DWI space. Either specify this or choose '--generate'.",
+        help="Path to original tract file (.tck or .trk). Should be in DWI space. Must either specify this or choose '--generate'.",
         type=validate_file,
         metavar=("/PATH/TO/TRACT.trk|.tck"),
         action=CheckExt({".trk", ".tck"}),
     )
     extract_or_generate.add_argument(
         "--generate",
-        help="Generate an FSuB instead of extracting it from a tract file. Either specify this or input a file for '--tract'.",
+        help="Generate an FSuB instead of extracting it from a tract file. Must either specify this or input a file for '--tract'.",
         default=False,
         action="store_true",
     )
@@ -38,7 +38,7 @@ def get_parser():
     )
     parser.add_argument(
         "--roi1",
-        help="First ROI file (.mgz, .label, .gii, or .nii.gz). File should be binary (1 in ROI, 0 elsewhere).",
+        help="Path to first ROI file (.mgz, .label, .gii, or .nii.gz). File should be binary (1 in ROI, 0 elsewhere).",
         type=validate_file,
         required=True,
         metavar=("/PATH/TO/ROI1.mgz|.label|.gii|.nii.gz"),
@@ -52,7 +52,7 @@ def get_parser():
     )
     parser.add_argument(
         "--roi2",
-        help="Second ROI file (.mgz, .label, .gii, or .nii.gz). If specified, program will find streamlines connecting ROI1 and ROI2. File should be binary (1 in ROI, 0 elsewhere).",
+        help="Path to second ROI file (.mgz, .label, .gii, or .nii.gz). If specified, program will find streamlines connecting ROI1 and ROI2. File should be binary (1 in ROI, 0 elsewhere).",
         type=validate_file,
         metavar=("/PATH/TO/ROI2.mgz|.label|.gii|.nii.gz"),
         action=CheckExt({".mgz", ".label", ".gii", ".nii.gz"}),
@@ -71,6 +71,35 @@ def get_parser():
         metavar=("/PATH/TO/FreeSurfer/SUBJECTSDIR/"),
     )
     parser.add_argument(
+        "--fivett",
+        help="Path to 5TT image (.nii.gz or .mif). Skips making it from FreeSurfer inputs. This is used if you opt to intersect ROIs with the GMWMI, and/or an FSuB is being generated (--generate).",
+        type=validate_file,
+        metavar=("/PATH/TO/5TT.nii.gz|.mif"),
+        action=CheckExt({".nii.gz", ".mif"}),
+    )
+    # parser.add_argument(
+    #    "--gmwmi",
+    #    help="Path to GMWMI image (.nii.gz or .mif). If not specified or not found, it will be created from FreeSurfer inputs. Ignored if --skip-gmwmi-intersection is specified. Should be in DWI space.",
+    #    type=validate_file,
+    #    metavar=("/PATH/TO/GMWMI.nii.gz|.mif"),
+    #    action=CheckExt({".nii.gz", ".mif"}),
+    # )
+    parser.add_argument(
+        "--gmwmi-thresh",
+        "--gmwmi_thresh",
+        help="Threshold above which to binarize the GMWMI image. Default is 0.0",
+        type=check_positive_float,
+        default=0.0,
+        metavar=("THRESHOLD"),
+    )
+    parser.add_argument(
+        "--skip-fivett-registration",
+        "--skip_fivett-registration",
+        help="If not specified, a registration (if supplied) will be applied to the 5TT image. Specify this flag if your 5TT image is in DWI space, but FreeSurfer and DWI inputs are not aligned.",
+        default=False,
+        action="store_true",
+    )
+    parser.add_argument(
         "--hemi",
         help="FreeSurfer hemisphere name(s) corresponding to locations of the ROIs, separated by a comma (no spaces) if different for two ROIs (e.g 'lh,rh'). Required unless --skip-roi-proj is specified.",
         choices=["lh", "rh", "lh,rh", "rh,lh"],
@@ -84,27 +113,6 @@ def get_parser():
         default=getcwd(),
         metavar=("/PATH/TO/OUTDIR/"),
     )
-    reg_group = parser.add_mutually_exclusive_group()
-    reg_group.add_argument(
-        "--fs2dwi",
-        help="Path to ANTs/ITK registration for mapping FreeSurfer-to-DWI space. Mutually exclusive with --dwi2fs.",
-        type=validate_file,
-        metavar=("/PATH/TO/FS2DWI-REG.txt"),
-        action=CheckExt({".txt"}),
-    )
-    reg_group.add_argument(
-        "--dwi2fs",
-        help="Path to ANTs/ITK registration for mapping DWI-to-FreeSurfer space. Mutually exclusive with --fs2dwi.",
-        type=validate_file,
-        metavar=("/PATH/TO/DWI2FS-REG.txt"),
-        action=CheckExt({".txt"}),
-    )
-    parser.add_argument(
-        "--reg-type",
-        "--reg_type",
-        choices=["mrtrix", "itk"],
-        help="Registration software compatability for .txt files. If the input registration is '*.mat', then this is automatically presumed to be 'itk'. Only set if the program does not figure this out automatically.",
-    )
     # parser.add_argument(
     #    "--fs-license",
     #    "--fs-license",
@@ -114,49 +122,11 @@ def get_parser():
     #    action=CheckExt({".txt"}),
     # )  # TODO: MAKE REQUIRED LATER FOR CONTAINER?
     parser.add_argument(
-        "--gmwmi",
-        help="Path to GMWMI image (.nii.gz or .mif). If not specified or not found, it will be created from FreeSurfer inputs. Ignored if --skip-gmwmi-intersection is specified. Should be in DWI space.",
-        type=validate_file,
-        metavar=("/PATH/TO/GMWMI.nii.gz|.mif"),
-        action=CheckExt({".nii.gz", ".mif"}),
-    )
-    parser.add_argument(
-        "--gmwmi-thresh",
-        "--gmwmi_thresh",
-        help="Threshold above which to binarize the GMWMI image. Default is 0.0",
-        type=check_positive_float,
-        default=0.0,
-        metavar=("THRESHOLD"),
-    )
-    parser.add_argument(
-        "--search-dist",
-        "--search_dist",
-        help="Distance in mm to search from streamlines for ROIs (float). Default is 3.0 mm. Ignored if --search-type is 'end' or 'all'.",
-        type=check_positive_float,
-        default=3.0,
-        metavar=("DISTANCE"),
-    )
-    parser.add_argument(
-        "--search-type",
-        "--search_type",
-        choices=["forward", "radial", "reverse", "end", "all"],
-        help="Method of searching for streamlines (see documentation for MRTrix3 'tck2connectome'). Default is forward.",
-        default="forward",
-    )
-    parser.add_argument(
         "--projfrac-params",
         "--projfrac_params",
         help="Comma delimited list (no spaces) of projfrac parameters for mri_surf2vol / mri_label2vol. Provided as start,stop,delta. Default is --projfrac-params='-1,0,0.05'. Start must be negative to project into white matter.",
         default="-1,0,0.05",
         metavar=("START,STOP,DELTA"),
-    )
-    parser.add_argument(
-        "--sift2-weights",
-        "--sift2_weights",
-        help="Path to SIFT2 weights file. If supplied, the sum of weights will be output with streamline extraction.",
-        type=validate_file,
-        metavar=("/PATH/TO/SIFT2_WEIGHTS.csv|.txt"),
-        action=CheckExt({".csv", ".txt"}),
     )
     parser.add_argument(
         "--exclude-mask",
@@ -203,16 +173,66 @@ def get_parser():
         action="store_true",
     )
 
-    # Generator arguments
+    # Registration arguments
+    reg_group = parser.add_argument_group("Options for Registration")
+    reg_dir_group = reg_group.add_mutually_exclusive_group()
+    reg_dir_group.add_argument(
+        "--fs2dwi",
+        help="Path to MRTrix-ready or ANTs/ITK-generated registration for mapping FreeSurfer-to-DWI space. Mutually exclusive with --dwi2fs.",
+        type=validate_file,
+        metavar=("/PATH/TO/FS2DWI-REG.txt"),
+        action=CheckExt({".txt"}),
+    )
+    reg_dir_group.add_argument(
+        "--dwi2fs",
+        help="Path to MRTrix-ready or ANTs/ITK-generated registration for mapping DWI-to-FreeSurfer space. Mutually exclusive with --fs2dwi.",
+        type=validate_file,
+        metavar=("/PATH/TO/DWI2FS-REG.txt"),
+        action=CheckExt({".txt"}),
+    )
+    reg_group.add_argument(
+        "--reg-type",
+        "--reg_type",
+        choices=["mrtrix", "itk"],
+        help="Registration software compatability for .txt files. Only set if the program does not figure this out automatically.",
+    )
+
+    # Extractor-specific arguments
+    ext_args = parser.add_argument_group("Options for Streamline Extractor")
+    ext_args.add_argument(
+        "--search-dist",
+        "--search_dist",
+        help="Distance in mm to search from streamlines for ROIs (float). Default is 3.0 mm. Ignored if --search-type is 'end' or 'all'.",
+        type=check_positive_float,
+        default=3.0,
+        metavar=("DISTANCE"),
+    )
+    ext_args.add_argument(
+        "--search-type",
+        "--search_type",
+        choices=["forward", "radial", "reverse", "end", "all"],
+        help="Method of searching for streamlines (see documentation for MRTrix3 'tck2connectome'). Default is radial.",
+        default="radial",
+    )
+    ext_args.add_argument(
+        "--sift2-weights",
+        "--sift2_weights",
+        help="Path to SIFT2 weights file. If supplied, the sum of weights will be output with streamline extraction.",
+        type=validate_file,
+        metavar=("/PATH/TO/SIFT2_WEIGHTS.csv|.txt"),
+        action=CheckExt({".csv", ".txt"}),
+    )
+
+    # Generator-specific arguments
     gen_args = parser.add_argument_group("Options for Streamline Generator")
-    parser.add_argument(
+    gen_args.add_argument(
         "--wmfod",
         help="Path to white matter FOD image (.nii.gz or .mif). Used as source for iFOD2 tracking.",
         type=validate_file,
         metavar=("/PATH/TO/WMFOD.nii.gz|.mif"),
         action=CheckExt({".nii.gz", ".mif"}),
     )
-    parser.add_argument(
+    gen_args.add_argument(
         "--n-streamlines",
         "--n_streamlines",
         help="Number of streamlines per generated FSuB ('-select' param of tckgen). Should be an even number. Default is 1000.",
@@ -220,7 +240,7 @@ def get_parser():
         metavar=("N"),
         default=1000,
     )
-    parser.add_argument(
+    gen_args.add_argument(
         "--tckgen-params",
         "--tckgen_params",
         help="Path to .txt file containing additional arguments for MRtrix tckgen, space-delimited (e.g., -minlength X -maxlength X)",
@@ -295,7 +315,7 @@ def get_parser():
         "--fsub_linewidth",
         help="Linewidth for extracted steamlines in visualization (float). Default is 3.0.",
         default=3.0,
-        type=float,
+        type=check_positive_float,
         metavar=("LINEWIDTH"),
     )
     viz_args.add_argument(
@@ -398,12 +418,14 @@ def main():
         roi2=args.roi2,
         roi2_name=args.roi2_name,
         fs_dir=args.fs_dir,
+        fivett=args.fivett,
+        skip_fivett_registration=args.skip_fivett_registration,
         hemi=args.hemi,
         fs2dwi=args.fs2dwi,
         dwi2fs=args.dwi2fs,
         reg_type=args.reg_type,
         # fs_license=args.fs_license,
-        gmwmi=args.gmwmi,
+        # gmwmi=args.gmwmi,
         gmwmi_thresh=args.gmwmi_thresh,
         search_dist=str(args.search_dist),
         search_type=str(args.search_type),

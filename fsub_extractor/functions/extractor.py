@@ -17,6 +17,8 @@ def extractor(
     roi2,
     roi2_name,
     fs_dir,
+    fivett,
+    skip_fivett_registration,
     hemi,
     fs2dwi,
     dwi2fs,

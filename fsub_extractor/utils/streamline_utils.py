@@ -184,6 +184,7 @@ def extract_tck_mrtrix(
 def generate_tck_mrtrix(
     rois_in,
     wmfod,
+    fivett,
     n_streamlines,
     outpath_base,
     pial_exclusion_mask=None,
@@ -248,10 +249,13 @@ def generate_tck_mrtrix(
     tckgen_out = outpath_base + "_desc-fsub.tck"
     cmd_tckgen = [
         tckgen,
+        wmfod,
         tckgen_out,
         "-algorithm",
         "iFOD2",
         "-seed_unidirectional",
+        "-act",
+        fivett,
         "-backtrack",
         "-crop_at_gmwmi",
         "-select",
