@@ -84,13 +84,6 @@ def get_parser():
     #    metavar=("/PATH/TO/FS_LICENSE.txt),
     #    action=CheckExt({".txt"}),
     # )  # TODO: MAKE REQUIRED LATER FOR CONTAINER?
-    # parser.add_argument(
-    #    "--gmwmi",
-    #    help="Path to GMWMI image (.nii.gz or .mif). If not specified or not found, it will be created from FreeSurfer inputs. Ignored if --skip-gmwmi-intersection is specified. Should be in DWI space.",
-    #    type=validate_file,
-    #    metavar=("/PATH/TO/GMWMI.nii.gz|.mif"),
-    #    action=CheckExt({".nii.gz", ".mif"}),
-    # )
     parser.add_argument(
         "--projfrac-params",
         "--projfrac_params",
@@ -429,7 +422,6 @@ def main():
         hemi=args.hemi,
         fs_dir=args.fs_dir,
         # fs_license=args.fs_license,
-        # gmwmi=args.gmwmi,
         projfrac_params=args.projfrac_params,
         fivett=args.fivett,
         gmwmi_thresh=args.gmwmi_thresh,
