@@ -19,7 +19,6 @@ def extractor(
     hemi,
     fs_dir,
     # fs_license,
-    # gmwmi,
     projfrac_params,
     fivett,
     gmwmi_thresh,
@@ -275,7 +274,7 @@ def extractor(
 
     ### Process ROI2 the same way if specified ###
     if two_rois == False:
-        rois_in = roi1_projected
+        rois_atlas_in = roi1_projected
         rois_name = roi1_name
         roi2_projected = None
     else:
@@ -317,8 +316,8 @@ def extractor(
 
         ### Merge ROIS ###
         print("\n Merging ROIs \n")
-        rois_in = merge_rois(
-            roi1=roi1_projceted,
+        rois_atlas_in = merge_rois(
+            roi1=roi1_projected,
             roi2=roi2_projected,
             out_file=op.join(
                 func_out_dir, f"{subject}_rec-merged_desc-{roi1_name}{roi2_name}.nii.gz"
@@ -339,7 +338,7 @@ def extractor(
         print("\n Extracing the sub-bundle \n")
         extracted_tck = extract_tck_mrtrix(
             tck_file,
-            rois_in,
+            rois_atlas_in,
             outpath_base=op.join(dwi_out_dir, f"{subject}_{tract_name}_{rois_name}"),
             two_rois=two_rois,
             search_dist=search_dist,
@@ -366,13 +365,44 @@ def extractor(
             overwrite=overwrite,
         )
 
-        ### Generate the FSuBs
-        generate_tck_mrtrix(
-            rois_in=rois_in,
+        print(f"\n Generating Sub-bundles \n")
+
+        if two_rois:
+            # Seed half of streamlines from each seed ROI
+            n_streamlines = int(n_streamlines / 2)
+
+            fsub_1_name = f"{subject}_space-DWI_from-{roi1_name}_to-{roi2_name}_desc-{tract_name}_fsub.tck"
+            fsub_2_name = f"{subject}_space-DWI_from-{roi2_name}_to-{roi1_name}_desc-{tract_name}_fsub.tck"
+
+            # Generate FSuB from 2nd ROI
+            fsub_gen_2 = generate_tck_mrtrix(
+                roi_begin=roi2_projected,
+                roi_end=roi1_projected,
+                wmfod=wmfod,
+                fivett=fivett,
+                n_streamlines=n_streamlines,
+                outfile=op.join(dwi_out_dir, fsub_2_name),
+                pial_exclusion_mask=pial_surf,
+                exclude_mask=exclude_mask,
+                include_mask=include_mask,
+                streamline_mask=streamline_mask,
+                tckgen_params=tckgen_params,
+                overwrite=overwrite,
+            )
+        else:
+            fsub_1_name = (
+                f"{subject}_space-DWI_from-{roi1_name}_desc-{tract_name}_fsub.tck"
+            )
+            fsub_2_name = None
+
+        # Generate FSuB from 1st ROI
+        fsub_gen_1 = generate_tck_mrtrix(
+            roi_begin=roi1_projected,
+            roi_end=roi2_projected,
             wmfod=wmfod,
             fivett=fivett,
             n_streamlines=n_streamlines,
-            outpath_base=outpath_base,  # FIX
+            outpath_base=op.join(dwi_out_dir, fsub_1_name),
             pial_exclusion_mask=pial_surf,
             exclude_mask=exclude_mask,
             include_mask=include_mask,
@@ -380,6 +410,22 @@ def extractor(
             tckgen_params=tckgen_params,
             overwrite=overwrite,
         )
+
+        if two_rois:
+            # Merge the tracks
+            fsub_bundle = op.join(
+                dwi_out_dir,
+                f"{subject}_space-DWI_from-{roi1_name}_to-{roi2_name}_desc-{tract_name}_desc-merged_fsub.tck",
+            )
+            tckedit = find_program("tckedit")
+            cmd_tckedit = [
+                tckedit,
+                fsub_gen_1,
+                fsub_gen_2,
+                fsub_bundle,
+            ]
+        else:
+            fsub_bundle = fsub_gen_1
 
     ### Visualize the outputs if requested ####
     if make_viz:
