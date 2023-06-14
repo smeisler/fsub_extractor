@@ -43,6 +43,7 @@ def extract_tck_mrtrix(
     sift2_weights=None,
     exclude_mask=None,
     include_mask=None,
+    streamline_mask=None,
     overwrite=True,
 ):
     """Uses MRtrix tools to extract the TCK file that connects to the ROI(s)
@@ -67,6 +68,10 @@ def extract_tck_mrtrix(
             Path to SIFT2 weights CSV file
     exclude_mask: str
             Path to streamline exclusion mask (.nii.gz). Streamlines leaving this mask will be discarded
+    include_mask: str
+            Path to streamline inclusion mask (.nii.gz). Streamlines must intersect this mask to be kept
+    streamline_mask: str
+            Path to streamline mask (.nii.gz). Streamlines leaving this mask are truncated
     overwrite: bool
             Whether to allow overwriting outputs
 
@@ -88,11 +93,16 @@ def extract_tck_mrtrix(
         tck_file,
         rois_in,
         tck2connectome_connectome_out,
-        "-assignment_" + search_type + "_search",
-        search_dist,
+        # "-assignment_" + search_type + "_search",
+        # search_dist,
         "-out_assignments",
         tck2connectome_assignments_out,
     ]
+    if search_type == "end" or search_type == "all":
+        cmd_tck2connectome += ["-assignment_{search_type}_voxels"]
+    else:
+        cmd_tck2connectome += [f"-assignment_{search_type}_search", search_dist]
+
     if overwrite == False:
         overwrite_check(tck2connectome_assignments_out)
         overwrite_check(tck2connectome_connectome_out)
@@ -148,6 +158,146 @@ def extract_tck_mrtrix(
             cmd_tckedit += ["-exclude", exclude_mask]
         if include_mask != None:
             cmd_tckedit += ["-include", include_mask]
+        if streamline_mask != None:
+            cmd_tckedit += ["-mask", streamline_mask]
+        if overwrite == False:
+            overwrite_check(tckedit_out)
+        else:
+            cmd_tckedit += ["-force"]
+        if sift2_weights != None:
+            sift2_weights_edited = (
+                outpath_base + "desc-fsubSIFT2weights_desc-masked.csv"
+            )
+            cmd_tckedit += [
+                "-tck_weights_in",
+                sift2_weights_extracted,
+                "-tck_weights_out",
+                sift2_weights_edited,
+            ]
+        run_command(cmd_tckedit)
+
+        return tckedit_out
+    else:
+        return connectome2tck_out
+
+
+def generate_tck_mrtrix(
+    rois_in,
+    wmfod,
+    fivett,
+    n_streamlines,
+    outpath_base,
+    pial_exclusion_mask=None,
+    exclude_mask=None,
+    include_mask=None,
+    streamline_mask=None,
+    tckgen_params=None,
+    overwrite=True,
+):
+    """Uses MRtrix tools to generate a TCK file that connects to the ROI(s)
+    If the ROI image contains one value, finds all streamlines that connect to that region
+    If the ROI image contains two values, finds all streamlines that connect the two regions
+
+    Parameters
+    ==========
+    rois_in: list
+            List of paths of 1 or 2 ROIs to include
+    wmfod: str
+            Path to wmfod image (.nii.gz, .nii, .mif)
+    n_streamlines: int
+            Number of streamlines for final FSuB.
+    outpath_base: str
+            Path to output directory, including output prefix
+    pial_exclusion_mask: str
+            Path to outer surface exclusion mask that makes surface seeding more efficient
+    exclude_mask: str
+            Path to streamline exclusion mask (.nii.gz). Streamlines leaving this mask will be discarded
+    include_mask: str
+            Path to streamline inclusion mask (.nii.gz). Streamlines must intersect this mask to be kept
+    streamline_mask: str
+            Path to streamline mask (.nii.gz). Streamlines leaving this mask are truncated
+    tckgen_params: str
+            Path to txt file with additional tckgen params
+    overwrite: bool
+            Whether to allow overwriting outputs
+
+    Outputs
+    =======
+    Function returns the path of the extracted tck file
+    outpath_base + assignments.txt/connectome.txt describe the streamline-to-node assignments
+    outpath_base + extracted.tck is the extracted sub-bundle
+    outpath_base + extracted_masked.tck is the extracted bundle after applying exclusion masking (if masking is done)
+    *_weights.csv files are the SIFT2 weights for the extracted and masked bundles
+    """
+
+    # Determine if one or two ROIs were passed in
+    rois_in = list(rois_in)
+    if len(rois_in) == 2:
+        two_rois = True
+        n_streamlines = int(
+            n_streamlines / 2
+        )  # Seed half of streamlines from each seed ROI
+    elif len(rois_in) == 1:
+        two_rois = False
+    else:
+        raise Exception(
+            f"Must pass either one or two ROIs in. {len(two_rois)} ROIs were input."
+        )
+
+    ### tckgen
+    tckgen = find_program("tckgen")
+    tckgen_out = outpath_base + "_desc-fsub.tck"
+    cmd_tckgen = [
+        tckgen,
+        wmfod,
+        tckgen_out,
+        "-algorithm",
+        "iFOD2",
+        "-seed_unidirectional",
+        "-act",
+        fivett,
+        "-backtrack",
+        "-crop_at_gmwmi",
+        "-select",
+        str(n_streamlines),
+    ]
+
+    if pial_exclusion_mask != None:
+        cmd_tckgen += ["-exclude", pial_exclusion_mask]
+    if exclude_mask != None:
+        cmd_tckgen += ["-exclude", exclude_mask]
+    if include_mask != None:
+        cmd_tckgen += ["-include", include_mask]
+    if streamline_mask != None:
+        cmd_tckgen += ["-mask", streamline_mask]
+    if tckgen_params != None:
+        with open(tckgen_parmas) as f:
+            params_str = f.readlines()[0]
+            params_list = params_str.split(" ")
+            f.close()
+        cmd_tckgen += params_list
+    if overwrite == False:
+        overwrite_check(tckgen_out)
+    else:
+        cmd_tckgen += ["-force"]
+
+    run_command(cmd_tckgen)
+
+    # Mask streamlines if requested
+    if exclude_mask != None or include_mask != None:
+        tckedit_out = outpath_base + "_desc-fsub_desc-masked.tck"
+        tckedit = find_program("tckedit")
+        cmd_tckedit = [
+            tckedit,
+            connectome2tck_out,
+            tckedit_out,
+        ]
+        if exclude_mask != None:
+            cmd_tckedit += ["-exclude", exclude_mask]
+        if include_mask != None:
+            cmd_tckedit += ["-include", include_mask]
+        if streamline_mask != None:
+            cmd_tckedit += ["-mask", streamline_mask]
         if overwrite == False:
             overwrite_check(tckedit_out)
         else:

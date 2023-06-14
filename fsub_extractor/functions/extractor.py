@@ -10,30 +10,36 @@ from fsub_extractor.utils.streamline_utils import *
 def extractor(
     subject,
     tract,
+    generate,
     tract_name,
     roi1,
     roi1_name,
     roi2,
     roi2_name,
-    fs_dir,
     hemi,
+    fs_dir,
+    # fs_license,
+    # gmwmi,
+    projfrac_params,
+    fivett,
+    gmwmi_thresh,
+    skip_fivett_registration,
+    skip_roi_projection,
+    skip_gmwmi_intersection,
+    out_dir,
+    overwrite,
+    exclude_mask,
+    include_mask,
+    streamline_mask,
     fs2dwi,
     dwi2fs,
     reg_type,
-    # fs_license,
-    gmwmi,
-    gmwmi_thresh,
     search_dist,
     search_type,
-    proj_dist,
-    projfrac_params,
     sift2_weights,
-    exclude_mask,
-    include_mask,
-    out_dir,
-    overwrite,
-    skip_roi_projection,
-    skip_gmwmi_intersection,
+    wmfod,
+    n_streamlines,
+    tckgen_params,
     make_viz,
     interactive_viz,
     img_viz,
@@ -50,22 +56,45 @@ def extractor(
     # Force start log outputs on new line
     print("\n")
 
-    ### Check for assertion errors ###
+    # Set flag for whether two rois were passed in ###
+    if roi2 != None:
+        two_rois = True
+    else:
+        two_rois = False
 
-    # 1. If ROIs are to be projected or GMWMI craeted, make sure FS dir exists, hemispheres are valid, and proj-frac params are valid
-    fs_sub_dir = op.join(fs_dir, subject)
-    if skip_roi_projection == False or gmwmi == None:
-        # Check FreeSurfer directory passed in and is valid
-        if fs_dir == None:
-            raise Exception("No FreeSurfer directory passed in.")
-        if op.isdir(op.join(fs_sub_dir, "surf")) == False:
+    # If --fs_dir was not specified, infer from environment
+    if fs_dir == None:
+        fs_dir = os.getenv("SUBJECTS_DIR")
+        warnings.warn(
+            f"--fs_dir was not specified, so it is being inferred as {fs_dir}. If this is not correct, please manually supply that argument.)"
+        )
+
+    # If skipping ROI projection, make sure ROIs are NIFTI files
+    if skip_roi_projection:
+        nifti_check1 = True
+        nifti_check2 = True
+        if roi1[-7:] != ".nii.gz":
+            nifti_check1 = False
+        if roi2 != None:
+            if roi2[-7:] != ".nii.gz":
+                nifti_check2 = False
+        if nifti_check1 == False or nifti_check2 == False:
             raise Exception(
-                f"{fs_sub_dir} does not appear to be a valid FreeSurfer directory."
+                f"If skipping ROI projection, all input ROIs must be .nii.gz files."
             )
 
     # Split hemisphere input into list (useful if multiple are hemis are used)
     if hemi != None:
         hemi_list = hemi.split(",")
+
+    # If ROIs are to be projected or 5TT/GMWMI created, make sure FreeSurfer directory exists
+    if skip_roi_projection == False or (
+        fivett == None and (skip_gmwmi_intersection == False or generate == True)
+    ):
+        if op.isfile(op.join(fs_dir, subject, "surf", "lh.white")) == False:
+            raise Exception(
+                f"{fs_sub_dir} does not appear to be contain completed recon-all outputs."
+            )
 
     if skip_roi_projection == False:
         # Check hemi(s)
@@ -82,36 +111,20 @@ def extractor(
             raise Exception(
                 "Invalid number of projfrac-params specified. --projfrac-params should be provided as start,stop,delta."
             )
-        elif float(projfrac_params_list[0]) >= 0:
+        if float(projfrac_params_list[0]) >= 0:
             raise Exception(
                 "The 'start' paramater of projfrac-params must be negative to project into white matter."
             )
-        elif float(projfrac_params_list[-1]) <= 0:
-            raise Exception(
-                "The 'delta' paramater of projfrac-params must be positive to iterate correctly."
-            )
-        elif float(projfrac_params_list[1]) <= float(projfrac_params_list[0]):
+        if float(projfrac_params_list[1]) <= float(projfrac_params_list[0]):
             raise Exception(
                 "The 'stop' paramater of projfrac-params must be greater than the 'start' parameter."
             )
+        if float(projfrac_params_list[-1]) <= 0:
+            raise Exception(
+                "The 'delta' paramater of projfrac-params must be positive to iterate correctly."
+            )
 
-    # 2. Check if gmwmi exists or can be created if needed
-    gmwmi_path_check = op.join(
-        out_dir, subject, "anat", f"{subject}_desc-gmwmi.nii.gz"
-    )  # Where to look for pre-existing GMWMI
-    if gmwmi == None and fs_dir == None and skip_gmwmi_intersection == False:
-        raise Exception(
-            "GMWMI cannot be created unless a FreeSurfer directory is passed into --fs-dir."
-        )
-    elif gmwmi == None and op.exists(gmwmi_path_check):
-        gmwmi = gmwmi_path_check
-    elif gmwmi != None and op.exists(gmwmi) == False:
-        warnings.warn(
-            "GMWMI was specified but not found on the system. A new one will be created from the FreeSurfer input."
-        )
-        gmwmi = None
-
-    # 3. Define the registration
+    # Define and prepare registration
     if fs2dwi == None and dwi2fs == None:
         reg = None
         reg_invert = None
@@ -124,22 +137,20 @@ def extractor(
         reg_invert = True
     # Infer registration type if not supplied
     if reg != None and reg_type == None:
-        reg_fmt = op.splitext(reg)[-1]
-        if reg_fmt == ".lta":
-            reg_type = "LTA"
-        elif reg_fmt == ".txt":
-            reg_type = "ITK"
-        elif reg_fmt == ".mat":
-            reg_type = "FSL"
+        with open(reg) as f:
+            reg_first_line = f.readlines()[0]
+        f.close()
+        if "command_history" in reg_first_line:
+            reg_type = "mrtrix"
         else:
-            raise Exception(
-                f"Registration format must be either .lta (LTA), .txt (ITK/ANTS), or .mat (FSL). A format of {reg_fmt} was supplied."
-            )
+            reg_type = "itk"
         warnings.warn(
-            f"A registration type of {reg_type} was inferred based on the filename. If this is incorrect, please manually specify type with --reg-type flag."
+            f"A registration type of '{reg_type}' was inferred based on the contents of {reg}. If this is incorrect, please manually specify type with the '--reg-type' flag."
         )
 
     # XX. Make sure FS license is valid [TODO: HOW??]
+
+    ### Pre-checks are over, begin the processing!
 
     # Make output folders if they do not exist, and define the naming convention
     anat_out_dir = op.join(out_dir, subject, "anat")
@@ -149,69 +160,82 @@ def extractor(
     os.makedirs(dwi_out_dir, exist_ok=True)
     os.makedirs(func_out_dir, exist_ok=True)
 
+    # Prepare registration, if needed
+    if reg != None and reg_type != "mrtrix":
+        if reg_invert:
+            mrtrix_reg_out = op.join(
+                anat_out_dir, f"{subject}_from-DWI_to-FS_mode-image_desc-MRTrix_xfm.txt"
+            )
+        else:
+            mrtrix_reg_out = op.join(
+                anat_out_dir, f"{subject}_from-FS_to-DWI_mode-image_desc-MRTrix_xfm.txt"
+            )
+        reg = convert_to_mrtrix_reg(
+            reg, mrtrix_reg_out, reg_in_type=reg_type, overwrite=overwrite
+        )
+
     # TODO: Parallelize stuff...
 
-    ### Project WM surface [TODO: how to do this right?]
-    if False:
-        print(f"\n Projecting white matter surface inwards by {abs(proj_dist)} mm\n")
-        proj_dist_inwards = proj_dist * -1
-        for hemi in unique(hemi_list):
-            surf_projected_fname_out = op.join(
-                anat_out_dir,
-                f"{subject}_hemi-{hemi}_space-FS_surf-white_desc-projected.surf.gii",
-            )
-            project_wm_surf(
-                subject,
-                fs_dir,
-                hemi,
-                proj_dist=proj_dist_inwards,
-                surf_name="white",
-                outpath=surf_projected_fname_out,
-                overwrite=overwrite,
-            )
+    ### Create a 5TT and GMWMI if needed ###
+    if skip_fivett_registration:
+        # Assume anatomicals are already aligned to DWI
+        anat_space_label = "DWI"
+    else:
+        # Add FreeSurfer space label to differentiate if not aligned
+        anat_space_label = "FS"
 
-    ### Create a GMWMI, intersect with ROI ###
-    if skip_gmwmi_intersection == False and gmwmi == None:
-        print("\n Creating a GMWMI \n")
+    # Check if 5TT exists or can be created if needed
+    fivett_path_check = op.join(
+        out_dir, subject, "anat", f"{subject}_space-FS_desc-5tt.nii.gz"
+    )
+    if fivett == None and op.exists(fivett_path_check):
+        fivett = fivett_path_check
+        warnings.warn(
+            f"Found already-made final-stage 5TT image at {fivett}. Please delete, move, or rename this file if you do not want it to be used."
+        )
+    elif fivett != None and op.exists(fivett) == False:
+        warnings.warn(
+            "5TT image was specified but not found on the system. A new one will be created from the FreeSurfer input if needed."
+        )
+        fivett = None
+
+    if skip_gmwmi_intersection == False or generate == True:
+        print("\n Running GMWMI creation workflow \n")
         (fivett, gmwmi, gmwmi_bin) = anat_to_gmwmi(
-            fs_sub_dir,
+            op.join(fs_dir, subject),
             anat_out_dir,
             threshold=gmwmi_thresh,
             subject=subject,
+            fivett=fivett,
+            space_label=anat_space_label,
             overwrite=overwrite,
         )
-    else:
-        gmwmi_bin = binarize_image(
+
+    # Register 5TT / GMWMI to DWI space if needed
+    if skip_fivett_registration == False and reg != None:
+        print("\n Registering 5TT and GMWMI to DWI space \n")
+        fivett = register_to_dwi(
+            fivett,
+            op.join(out_dir, subject, "anat", f"{subject}_space-DWI_desc-5tt.nii.gz"),
+            reg,
+            invert=reg_invert,
+            overwrite=True,
+        )
+        gmwmi = register_to_dwi(
             gmwmi,
-            outfile=op.join(anat_out_dir, f"{subject}_rec-binarized_desc-gmwmi.nii.gz"),
-            threshold=gmwmi_thresh,
-            comparison="gt",
-            overwrite=overwrite,
+            gmwmi.replace("space-FS", "space-DWI"),
+            reg,
+            invert=reg_invert,
+            overwrite=True,
         )
-
-    ### Prepare registration, if needed
-    if reg != None:
-        if (
-            reg_type != "LTA" or reg_invert == True
-        ):  # We only need to prepare if doing an invert or working with a non-LTA file
-            reg_transformed = op.join(anat_out_dir, f"{subject}_xfm-fs2dwi.lta")
-            src = op.join(fs_sub_dir, "mri", "orig.mgz")
-            trg = gmwmi_bin
-            reg = prepare_reg(
-                reg_in=reg,
-                reg_out=reg_transformed,
-                src=src,
-                trg=trg,
-                invert=reg_invert,
-                reg_type=reg_type,
-                overwrite=overwrite,
-            )
-
-    ### Set flag for whether two rois were passed in ###
-    if roi2 != None:
-        two_rois = True
-    else:
-        two_rois = False
+        gmwmi_bin = register_to_dwi(
+            gmwmi_bin,
+            gmwmi_bin.replace("space-FS", "space-DWI"),
+            reg,
+            invert=reg_invert,
+            interp="nearest",
+            overwrite=True,
+        )
 
     ### Project the ROI(s) into the white matter and intersect with GMWMI ###
     if skip_roi_projection == False:
@@ -223,31 +247,37 @@ def extractor(
             subject=subject,
             hemi=hemi_list[0],
             outdir=func_out_dir,
-            fs_to_dwi_lta=reg,
             projfrac_params=projfrac_params_list,
             overwrite=overwrite,
         )
     else:
         print(f"\n Skipping {roi1_name} projection \n")
         roi1_projected = roi1
+    if reg != None:
+        registed_roi_name = roi1_projected.replace("space-FS", "space-DWI")
+        roi1_projected = register_to_dwi(
+            roi1_projected,
+            registed_roi_name,
+            reg,
+            invert=reg_invert,
+            interp="nearest",
+            overwrite=True,
+        )
     if skip_gmwmi_intersection == False:
         print(f"\n Intersecting {roi1_name} with GMWMI \n")
-        roi1_intersected = intersect_gmwmi(
+        roi1_projected = intersect_gmwmi(
             roi_in=roi1_projected,
             roi_name=roi1_name,
             gmwmi=gmwmi_bin,
             outpath_base=op.join(func_out_dir, subject),
             overwrite=overwrite,
         )
-    else:
-        roi1_intersected = roi1_projected
 
     ### Process ROI2 the same way if specified ###
     if two_rois == False:
-        rois_in = roi1_intersected
+        rois_in = roi1_projected
         rois_name = roi1_name
         roi2_projected = None
-        roi2_intersected = None
     else:
         rois_name = f"{roi1_name}-{roi2_name}"
         if skip_roi_projection == False:
@@ -259,60 +289,99 @@ def extractor(
                 subject=subject,
                 hemi=hemi_list[-1],
                 outdir=func_out_dir,
-                fs_to_dwi_lta=reg,
                 projfrac_params=projfrac_params_list,
                 overwrite=overwrite,
             )
         else:
             print(f"\n Skipping {roi2_name} projection \n")
             roi2_projected = roi2
+        if reg != None:
+            registed_roi_name = roi2_projected.replace("space-FS", "space-DWI")
+            roi2_projected = register_to_dwi(
+                roi2_projected,
+                registed_roi_name,
+                reg,
+                invert=reg_invert,
+                interp="nearest",
+                overwrite=True,
+            )
         if skip_gmwmi_intersection == False:
             print(f"\n Intersecting {roi2_name} with GMWMI \n")
-            roi2_intersected = intersect_gmwmi(
+            roi2_projected = intersect_gmwmi(
                 roi_in=roi2_projected,
                 roi_name=roi2_name,
                 gmwmi=gmwmi_bin,
                 outpath_base=op.join(func_out_dir, subject),
                 overwrite=overwrite,
             )
-        else:
-            roi2_intersected = roi2_projected
 
         ### Merge ROIS ###
         print("\n Merging ROIs \n")
         rois_in = merge_rois(
-            roi1=roi1_intersected,
-            roi2=roi2_intersected,
+            roi1=roi1_projceted,
+            roi2=roi2_projected,
             out_file=op.join(
                 func_out_dir, f"{subject}_rec-merged_desc-{roi1_name}{roi2_name}.nii.gz"
             ),
             overwrite=overwrite,
         )
 
-    ### Convert .trk to .tck if needed ###
-    if op.splitext(tract)[-1] == ".trk":
-        print("\n Converting .trk to .tck \n")
-        tck_file = trk_to_tck(tract, dwi_out_dir, overwrite=overwrite)
+    ### Extract FSuB from tractogram
+    if generate == False:
+        ### Convert .trk to .tck if needed ###
+        if op.splitext(tract)[-1] == ".trk":
+            print("\n Converting .trk to .tck \n")
+            tck_file = trk_to_tck(tract, dwi_out_dir, overwrite=overwrite)
+        else:
+            tck_file = tract
+
+        ### Run MRtrix Tract Extraction ###
+        print("\n Extracing the sub-bundle \n")
+        extracted_tck = extract_tck_mrtrix(
+            tck_file,
+            rois_in,
+            outpath_base=op.join(dwi_out_dir, f"{subject}_{tract_name}_{rois_name}"),
+            two_rois=two_rois,
+            search_dist=search_dist,
+            search_type=search_type,
+            sift2_weights=sift2_weights,
+            exclude_mask=exclude_mask,
+            include_mask=include_mask,
+            streamline_mask=streamline_mask,
+            overwrite=overwrite,
+        )
+        print("\n The extracted tract is located at " + extracted_tck + ".\n")
+
+    ### Seed and generate FSuB instead
     else:
-        tck_file = tract
+        tck_file = None  # No original streamline object (for visualization function)
 
-    ### Run MRtrix Tract Extraction ###
-    print("\n Extracing the sub-bundle \n")
-    extracted_tck = extract_tck_mrtrix(
-        tck_file,
-        rois_in,
-        outpath_base=op.join(dwi_out_dir, f"{subject}_{tract_name}_{rois_name}"),
-        two_rois=two_rois,
-        search_dist=search_dist,
-        search_type=search_type,
-        sift2_weights=sift2_weights,
-        exclude_mask=exclude_mask,
-        include_mask=include_mask,
-        overwrite=overwrite,
-    )
-    print("\n The extracted tract is located at " + extracted_tck + ".\n")
+        ### Make a outer surface exclusion mask to make tractography more efficient
+        print(f"\n Getting pial surface")
+        pial_surf = get_pial_surf(
+            subject,
+            fs_dir,
+            surf_name="pial",
+            anat_out_dir=anat_out_dir,
+            overwrite=overwrite,
+        )
 
-    ### Visualize the outputs ####
+        ### Generate the FSuBs
+        generate_tck_mrtrix(
+            rois_in=rois_in,
+            wmfod=wmfod,
+            fivett=fivett,
+            n_streamlines=n_streamlines,
+            outpath_base=outpath_base,  # FIX
+            pial_exclusion_mask=pial_surf,
+            exclude_mask=exclude_mask,
+            include_mask=include_mask,
+            streamline_mask=streamline_mask,
+            tckgen_params=tckgen_params,
+            overwrite=overwrite,
+        )
+
+    ### Visualize the outputs if requested ####
     if make_viz:
         from fsub_extractor.utils.fury_viz import visualize_sub_bundles
 
@@ -346,8 +415,8 @@ def extractor(
                 dwi_out_dir,
                 f"{subject}_hemi-{hemi_list[0]}_{tract_name}_{rois_name}_desc-visualization.png",
             ),
-            roi1=roi1_intersected,
-            roi2=roi2_intersected,
+            roi1=roi1_projected,
+            roi2=roi2_projected,
             orig_color=orig_color_list,
             fsub_color=fsub_color_list,
             roi1_color=roi1_color_list,
@@ -362,4 +431,4 @@ def extractor(
             hemi=hemi_list[0],
         )
 
-    print("\n DONE \n")
+    print("\n DONE! \n")

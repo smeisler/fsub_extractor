@@ -7,11 +7,11 @@ import numpy as np
 
 
 def visualize_sub_bundles(
-    orig_bundle,
     fsub_bundle,
     ref_anat,
     fname,
     roi1,
+    orig_bundle=None,
     roi2=None,
     orig_color=[0.8, 0.8, 0],
     fsub_color=[0.2, 0.6, 1],
@@ -30,12 +30,12 @@ def visualize_sub_bundles(
 
     Parameters
     ==========
-    orig_bundle: Original bundle (.tck)
     fsub_bundle: Sub bundle output (.tck)
     ref_anat: Reference anatomy (.nii.gz)
     fig_path = Path to save the figure
     fname = filename (.png)
     roi1: ROI that was used to create sub bundle file (.nii.gz)
+    orig_bundle (Optional): Original bundle (.tck)
     roi2 (Optional): Second ROI that was used to create pairwise sub-bundle (.nii.gz)
     orig_color (Optional): Color for original bundle ([R,G,B])
     fsub_color (Optional): Color for fsub bundle ([R,G,B])
@@ -59,18 +59,6 @@ def visualize_sub_bundles(
     reference_anatomy = nib.load(ref_anat)
 
     # Load in streamlines
-    orig_streamlines = load_tck(orig_bundle, reference_anatomy)
-    orig_streamlines = orig_streamlines.streamlines
-
-    # Repeat the color matrix for each streamline (orig)
-    n_orig_streamlines = np.shape(orig_streamlines)[0]
-    orig_color = np.array([orig_color])
-    orig_color = np.repeat(orig_color, n_orig_streamlines, axis=0)
-
-    # Make the streamline actor (orig)
-    orig_streamlines_actor = actor.line(orig_streamlines, orig_color, opacity=0.1)
-
-    # Load in streamlines
     fsub_streamlines = load_tck(fsub_bundle, reference_anatomy)
     fsub_streamlines = fsub_streamlines.streamlines
 
@@ -91,9 +79,22 @@ def visualize_sub_bundles(
 
     # Add actors to scene
     figure = window.Scene()
-    figure.add(orig_streamlines_actor)
     figure.add(fsub_streamlines_actor)
     figure.add(roi1_actor)
+
+    # Load in original streamlines if specified (e.g., extractor workflow, not generator)
+    if orig_bundle != None:
+        orig_streamlines = load_tck(orig_bundle, reference_anatomy)
+        orig_streamlines = orig_streamlines.streamlines
+
+        # Repeat the color matrix for each streamline (orig)
+        n_orig_streamlines = np.shape(orig_streamlines)[0]
+        orig_color = np.array([orig_color])
+        orig_color = np.repeat(orig_color, n_orig_streamlines, axis=0)
+
+        # Make the streamline actor (orig) and add to figure
+        orig_streamlines_actor = actor.line(orig_streamlines, orig_color, opacity=0.1)
+        figure.add(orig_streamlines_actor)
 
     if roi2 is not None:
         roi2_data, affine, img = load_nifti(roi2, return_img=True)
