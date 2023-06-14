@@ -20,7 +20,7 @@ foo@bar:~$ pip install -e .    # for developer to update
 ```
 
 ## Dependencies and Prerequisites
-Dependencies include (Code might work with lower versions, but has not been extensively tested):
+Dependencies include (code might work with lower versions, but has not been extensively tested):
 * Python >= 3.9.0
 * MRTrix >= 3.0.3
 * DIPY >= 1.5.0

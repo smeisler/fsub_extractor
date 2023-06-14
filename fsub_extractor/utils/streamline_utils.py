@@ -227,10 +227,7 @@ def generate_tck_mrtrix(
     Outputs
     =======
     Function returns the path of the extracted tck file
-    outpath_base + assignments.txt/connectome.txt describe the streamline-to-node assignments
-    outpath_base + extracted.tck is the extracted sub-bundle
-    outpath_base + extracted_masked.tck is the extracted bundle after applying exclusion masking (if masking is done)
-    *_weights.csv files are the SIFT2 weights for the extracted and masked bundles
+    Function saves out tractogram to outfile
     """
 
     ### tckgen
