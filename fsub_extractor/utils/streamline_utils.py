@@ -236,6 +236,8 @@ def generate_tck_mrtrix(
         tckgen,
         wmfod,
         outfile,
+        "-seeds",
+        "0",
         "-seed_gmwmi",
         roi_begin,
         "-algorithm",
@@ -271,4 +273,4 @@ def generate_tck_mrtrix(
 
     run_command(cmd_tckgen)
 
-    return out_file
+    return outfile

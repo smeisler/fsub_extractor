@@ -55,6 +55,12 @@ def extractor(
     # Force start log outputs on new line
     print("\n")
 
+    # Warn that generate function is still in beta
+    if generate:
+        warnings.warn(
+            f"WARNING: Generator functionality (--generate) is still in beta."
+        )
+
     # Set flag for whether two rois were passed in ###
     if roi2 != None:
         two_rois = True
@@ -336,7 +342,7 @@ def extractor(
 
         ### Run MRtrix Tract Extraction ###
         print("\n Extracing the sub-bundle \n")
-        extracted_tck = extract_tck_mrtrix(
+        fsub_bundle = extract_tck_mrtrix(
             tck_file,
             rois_atlas_in,
             outpath_base=op.join(dwi_out_dir, f"{subject}_{tract_name}_{rois_name}"),
@@ -349,21 +355,33 @@ def extractor(
             streamline_mask=streamline_mask,
             overwrite=overwrite,
         )
-        print("\n The extracted tract is located at " + extracted_tck + ".\n")
+
+        print("\n The extracted tract is located at " + fsub_bundle + ".\n")
 
     ### Seed and generate FSuB instead
     else:
         tck_file = None  # No original streamline object (for visualization function)
 
-        ### Make a outer surface exclusion mask to make tractography more efficient
-        print(f"\n Getting pial surface")
-        pial_surf = get_pial_surf(
-            subject,
-            fs_dir,
-            surf_name="pial",
-            anat_out_dir=anat_out_dir,
-            overwrite=overwrite,
-        )
+        ### Make a outer surface exclusion mask to make tractography more efficient (not sure if this helps, so not including now)
+        if False:
+            print(f"\n Getting pial surface")
+            pial_surf = get_pial_surf(
+                subject,
+                fs_dir,
+                surf_name="pial",
+                anat_out_dir=anat_out_dir,
+                overwrite=overwrite,
+            )
+
+            # Register pial surface if necessary
+            if reg != None:
+                pial_surf = register_to_dwi(
+                    pial_surf,
+                    pial_surf.replace("space-FS", "space-DWI"),
+                    reg,
+                    invert=reg_invert,
+                    overwrite=True,
+                )
 
         print(f"\n Generating Sub-bundles \n")
 
@@ -382,7 +400,8 @@ def extractor(
                 fivett=fivett,
                 n_streamlines=n_streamlines,
                 outfile=op.join(dwi_out_dir, fsub_2_name),
-                pial_exclusion_mask=pial_surf,
+                # pial_exclusion_mask=pial_surf,
+                pial_exclusion_mask=None,
                 exclude_mask=exclude_mask,
                 include_mask=include_mask,
                 streamline_mask=streamline_mask,
@@ -402,8 +421,9 @@ def extractor(
             wmfod=wmfod,
             fivett=fivett,
             n_streamlines=n_streamlines,
-            outpath_base=op.join(dwi_out_dir, fsub_1_name),
-            pial_exclusion_mask=pial_surf,
+            outfile=op.join(dwi_out_dir, fsub_1_name),
+            # pial_exclusion_mask=pial_surf,
+            pial_exclusion_mask=None,
             exclude_mask=exclude_mask,
             include_mask=include_mask,
             streamline_mask=streamline_mask,
@@ -424,8 +444,11 @@ def extractor(
                 fsub_gen_2,
                 fsub_bundle,
             ]
+            run_command(cmd_tckedit)
         else:
             fsub_bundle = fsub_gen_1
+
+        print("\n The generated tract is located at " + fsub_bundle + ".\n")
 
     ### Visualize the outputs if requested ####
     if make_viz:
@@ -455,7 +478,7 @@ def extractor(
 
         visualize_sub_bundles(
             orig_bundle=tck_file,
-            fsub_bundle=extracted_tck,
+            fsub_bundle=fsub_bundle,
             ref_anat=ref_anat,
             fname=op.join(
                 dwi_out_dir,

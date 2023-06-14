@@ -226,7 +226,7 @@ def get_parser():
         help="Path to white matter FOD image (.nii.gz or .mif). Used as source for iFOD2 tracking.",
         type=validate_file,
         metavar=("/PATH/TO/WMFOD.nii.gz|.mif"),
-        action=CheckExt({".nii.gz", ".mif"}),
+        action=CheckExt({".nii.gz", ".mif", ".mif.gz"}),
     )
     gen_args.add_argument(
         "--n-streamlines",
