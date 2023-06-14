@@ -411,6 +411,12 @@ def main():
     parser = get_parser()
     args = parser.parse_args()
 
+    # Temp: generator doesn't work yet, so do not let it run
+    if args.generate:
+        raise Exception(
+            "Generator function (--generate) is not functional yet. Please use --tract method instead, for now."
+        )
+
     main = extractor(
         subject=args.subject,
         tract=args.tract,

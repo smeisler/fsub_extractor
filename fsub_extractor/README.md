@@ -1,3 +1,3 @@
-All custom code goes into this directory. All scripts should be written such
-that they can be executed from the root of the dataset, and are only using
-relative paths for portability.
+* `cli_starters`: Argument parsers for CLI functions
+* `functions`: Where the main workflow code lives
+* `utils`: Convenience commands and utilities used in the functions
