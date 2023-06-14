@@ -3,7 +3,9 @@ import os
 from fsub_extractor.utils.system_utils import *
 
 
-def anat_to_gmwmi(anat, outdir, subject, threshold=0, overwrite=True):
+def anat_to_gmwmi(
+    anat, outdir, subject, threshold=0, fivett=None, space_label="FS", overwrite=True
+):
     """Creates a gray-matter-white-matter-interface (GMWMI) from a T1w or FreeSurfer image
     If a T1w image is passed (not recommended), uses FSL FAST to create 5TT and GMWMI
     If a FreeSurfer directory is passed in, uses the surface reconstruction to create 5TT and GMWMI
@@ -14,46 +16,62 @@ def anat_to_gmwmi(anat, outdir, subject, threshold=0, overwrite=True):
             Either a path to a T1w image (.nii, .nii.gz, .mif) or FreeSurfer subject directory
     outdir: str
             Path to output directory
+    subject: str
+            Subject name
+    threshold: float
+            Threshold above which to binarize GMWMI
+    fivett: str
+            Path to 5TT image (.nii, .nii.gz, .mif), skips the 5ttgen step
+    space_label: str
+            "FS" for FreeSurfer Space, "DWI" for DWI space
     overwrite: bool
             Whether to allow overwriting outputs
 
     Outputs
     =======
     Function returns paths to 5tt, gmwmi, and binarized gmwmi
-    outdir + 5tt.nii.gz is the 5TT segmented anatomical image
-    outdir + gmwmi.nii.gz is the GMWMI image
-    outdir + gmwmi_bin.nii.gz is the binarized GMWMI image
+    outdir/{subject}_space-{space_label}_desc-5tt.nii.gz is the 5TT segmented anatomical image
+    outdir/{subject}_space-{space_label}_desc-gmwmi.nii.gz is the GMWMI image
+    outdir/{subject}_space-{space_label}_rec-binarized_desc-gmwmi.nii.gz is the binarized GMWMI image
     """
 
     # Check for T1 file vs FreeSurfer directory
     if op.isdir(op.join(anat, "surf")):
         print(
-            "FreeSurfer input detected: Using 5ttgen HSVS algorithm to generate GMWMI"
+            "   FreeSurfer input detected: Using 5ttgen HSVS algorithm to generate GMWMI"
         )
         fivett_algo = "hsvs"
     elif anat[-7:] == ".nii.gz" or anat[-4:] == ".nii" or anat[-4:] == ".mif":
-        print("T1w image detected: Using FSL 5ttgen algorithm to generate GMWMWI")
+        print("   T1w image detected: Using FSL 5ttgen algorithm to generate GMWMI")
         fivett_algo = "fsl"
     else:
         raise Exception(
             "Neither T1w or FreeSurfer input detected; Unable to create GMWMI"
         )
 
-    # Run 5ttgen to generate 5tt image
-    print("\n Generating 5TT Image \n")
-    fivettgen = find_program("5ttgen")
-    fivettgen_out = op.join(outdir, f"{subject}_desc-5tt.nii.gz")
-    cmd_5ttgen = [fivettgen, fivett_algo, anat, fivettgen_out, "-nocrop"]
-    if overwrite:
-        cmd_5ttgen += ["-force"]
+    if fivett == None:
+        # Run 5ttgen to generate 5tt image
+        print("\n   Generating 5TT Image \n")
+        fivettgen = find_program("5ttgen")
+        fivettgen_out = op.join(
+            outdir, f"{subject}_space-{space_label}_desc-5tt.nii.gz"
+        )
+        cmd_5ttgen = [fivettgen, fivett_algo, anat, fivettgen_out]  # , "-nocrop"
+        if overwrite:
+            cmd_5ttgen += ["-force"]
+        else:
+            overwrite_check(fivettgen_out)
+        run_command(cmd_5ttgen)
     else:
-        overwrite_check(fivettgen_out)
-    run_command(cmd_5ttgen)
+        print("\n   Using user-supplied 5TT image \n")
+        fivettgen_out = fivett
 
     # Run 5tt2gmwmi to generate GMWMI image
-    print("\n Generating GMWMI Image \n")
+    print("\n   Generating GMWMI Image \n")
     fivett2gmwmi = find_program("5tt2gmwmi")
-    fivett2gmwmi_out = op.join(outdir, f"{subject}_desc-gmwmi.nii.gz")
+    fivett2gmwmi_out = op.join(
+        outdir, f"{subject}_space-{space_label}_desc-gmwmi.nii.gz"
+    )
     cmd_5tt2gmwmi = [
         fivett2gmwmi,
         fivettgen_out,
@@ -66,8 +84,10 @@ def anat_to_gmwmi(anat, outdir, subject, threshold=0, overwrite=True):
     run_command(cmd_5tt2gmwmi)
 
     # Run mrthreshold to binarize the GMWMI
-    print(f"\n Binarizing GMWMI at threshold of {threshold} \n")
-    binarized_gmwmi_out = op.join(outdir, f"{subject}_rec-binarized_desc-gmwmi.nii.gz")
+    print(f"\n   Binarizing GMWMI at threshold of {threshold} \n")
+    binarized_gmwmi_out = op.join(
+        outdir, f"{subject}_space-{space_label}_rec-binarized_desc-gmwmi.nii.gz"
+    )
     binarized_gmwmi = binarize_image(
         fivett2gmwmi_out, binarized_gmwmi_out, threshold=threshold, overwrite=overwrite
     )
@@ -234,64 +254,3 @@ def convert_to_mrtrix_reg(reg_in, mrtrix_reg_out, reg_in_type="itk", overwrite=T
     run_command(cmd_transformconvert)
 
     return mrtrix_reg_out
-
-
-def prepare_reg_old(
-    reg_in, reg_out, src=None, trg=None, invert=False, reg_type="LTA", overwrite=True
-):
-    """Makes an LTA convert file for mapping between FreeSurfer and DWI space
-
-    Parameters
-    ==========
-    reg_in: str
-            Path to input registation
-    reg_out: str
-            Where to save output registation
-    src: str
-            Path to image used for source image geometric reference
-    trg: str
-            Path to image used for target image geometric reference
-    invert: bool
-            Whether to invert transformation.
-    reg_type: str
-            Format of input registration. Choices are LTA, ITK, and FSL
-    overwrite: bool
-            Whether to allow overwriting outputs
-
-    Outputs
-    =======
-    Function returns path to binarized image
-    outfile is the binarized image
-    """
-    # Import the correct kind of registration
-    if reg_type == "LTA":
-        reg_in_string = "--inlta"
-    elif reg_type == "ITK":
-        reg_in_string = "--initk"
-    elif reg_type == "FSL":
-        reg_in_string = "--infsl"
-
-    # Define the lta_convert command
-    lta_convert = find_program("lta_convert")
-    cmd_lta_convert = [
-        lta_convert,
-        reg_in_string,
-        reg_in,
-        "--outlta",
-        reg_out,
-    ]
-
-    # Add source and target geometric reference images if not inputting LTA
-    if reg_type != "LTA":
-        cmd_lta_convert += ["--src", src, "--trg", trg]
-
-    # Invert transformation if requested
-    if invert:
-        cmd_lta_convert += ["--invert"]
-
-    if overwrite == False:
-        overwrite_check(reg_out)
-
-    run_command(cmd_lta_convert)
-
-    return reg_out

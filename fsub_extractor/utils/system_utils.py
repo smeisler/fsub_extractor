@@ -56,7 +56,7 @@ def run_command(cmd_list, verbose=True):
     Parameters
     ==========
     cmd_list: list
-            List containing arguments for the function, e.g. ['CommandName', '--argName1', 'arg1']
+            List containing arguments for the function, e.g. ['CommandName', '--argName1', 'arg1'...]
 
     Outputs
     =======
@@ -66,7 +66,7 @@ def run_command(cmd_list, verbose=True):
     function_name = cmd_list[0]
 
     if verbose:
-        # Print command run to the output
+        # Print command information to output
         print(
             "\n######## Running Shell Command: ########",
         )

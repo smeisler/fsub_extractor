@@ -1,7 +1,7 @@
 # _fsub-extractor_
-This is an application for extracing **F**unctional **Su**bcomponents of **B**undles. This software can take gray matter regions, project them into white matter, intersect them with the gray-matter-white-matter-interface (GMWMI), and find streamlines that connect to these intersected region. It will also produce a visualization of the streamlines, and can sample scalar values along the extracted streamlines (tract profile or average across all streamlines).
+This is an application for extracing **F**unctional **Su**bcomponents of **B**undles. This software can take gray matter regions, project them into white matter, and find streamlines that connect to them. It can also produce a visualization of the streamlines and sample scalar values along these streamlines (tract profile and average across all streamlines).
 
-This software was conceived of and developed during NeuroHackademy 2022.
+This software was conceived of during NeuroHackademy 2022.
 
 ## Install from GitHub
 ```
@@ -26,12 +26,13 @@ Dependencies include:
 * DIPY >= 1.5.0
 * vtk >= 9.1.0
 * Fury >= 0.8.0
-* FreeSurfer >= 7.2.0 (it might work with lower versions, but this code was not tested on previous versions).
+* FreeSurfer >= 7.2.0
+(Code might work with lower versions, but has not been extensively tested)
 
 If you are using this software, you should be at the point in your analysis where you have:
 * Preprocessed DWI, with tract-files of interest.
     * .trk or .tck; could be whole-brain or segmented bundles.
-    * You might also have scalar maps (e.g., FA, MD, NODDI metrics; .nii.gz) that you want to sample streamlines on.
+    * You might also have scalar maps (e.g., FA, MD, NODDI metrics; .nii.gz) that you want to get streamline values for.
 * BINARY masks of ROIs, e.g. from fMRI GLM clusters.
     * Can be defined in volumetric space (.nii.gz) or surface space (.mgz, .label, .gii).
 * FreeSurfer `recon-all` outputs on the subject's anatomical image.
@@ -40,31 +41,34 @@ If you are using this software, you should be at the point in your analysis wher
     
 ## Usage
 ### `extractor`
-The `extractor` function has two main use cases:
+The `extractor` function has three main use cases:
 1. Deriving *all* streamlines that connect to an ROI.
     * Best-suited for looking at segmented bundles, as opposed to whole-brain tractograms.
 2. Deriving streamlines that connect a pair of ROIs.
     * Whole-brain or segmented bundles can work, depending on the ROI locations and sizes.
+3. *Generating* streamlines that connect to the ROI(s) (sse the `--generate` flag).
+
+Please review the full argument space below:
 ```
 ❯ extractor -h
-usage: extractor [-h] --subject sub-XXX --tract /PATH/TO/TRACT.trk|.tck [--tract-name TRACT_NAME]
-                 --roi1 /PATH/TO/ROI1.mgz|.label|.gii|.nii.gz [--roi1-name ROI1_NAME]
-                 [--roi2 /PATH/TO/ROI2.mgz|.label|.gii|.nii.gz] [--roi2-name ROI2_NAME]
-                 [--fs-dir /PATH/TO/FreeSurfer/SUBJECTSDIR/] [--hemi {lh|rh|lh,rh|rh,lh}]
-                 [--fs2dwi /PATH/TO/FS2DWI-REG.lta|.txt|.mat]
-                 [--dwi2fs /PATH/TO/DWI2FS-REG.lta|.txt|.mat] [--reg-type {LTA,ITK,FSL}]
-                 [--gmwmi /PATH/TO/GMWMI.nii.gz|.mif] [--gmwmi-thresh THRESHOLD]
-                 [--search-dist DISTANCE] [--search-type {forward,radial,reverse}]
-                 [--projfrac-params START,STOP,DELTA] [--sift2-weights /PATH/TO/SIFT2_WEIGHTS.csv]
+usage: extractor [-h] --subject sub-XXX (--tract /PATH/TO/TRACT.trk|.tck | --generate)
+                 [--tract-name TRACT_NAME] --roi1 /PATH/TO/ROI1.mgz|.label|.gii|.nii.gz
+                 [--roi1-name ROI1_NAME] [--roi2 /PATH/TO/ROI2.mgz|.label|.gii|.nii.gz]
+                 [--roi2-name ROI2_NAME] [--hemi {lh|rh|lh,rh|rh,lh}]
+                 [--fs-dir /PATH/TO/FreeSurfer/SUBJECTSDIR/] [--projfrac-params START,STOP,DELTA]
+                 [--fivett /PATH/TO/5TT.nii.gz|.mif] [--gmwmi-thresh THRESHOLD]
+                 [--skip-fivett-registration] [--skip-roi-projection] [--skip-gmwmi-intersection]
+                 [--out-dir /PATH/TO/OUTDIR/] [--overwrite | --no-overwrite]
                  [--exclude-mask /PATH/TO/EXCLUDE_MASK.nii.gz|.mif]
-                 [--include-mask /PATH/TO/INCLUDE_MASK.nii.gz|.mif] [--out-dir /PATH/TO/OUTDIR/]
-                 [--overwrite | --no-overwrite]
-                 [--skip-roi-projection | --no-skip-roi-projection | --skip_roi_projection | --no-skip_roi_projection]
-                 [--skip-gmwmi-intersection | --no-skip-gmwmi-intersection | --skip_gmwmi_intersection | --no-skip_gmwmi_intersection]
-                 [--make-viz | --no-make-viz | --make_viz | --no-make_viz]
-                 [--interactive-viz | --no-interactive-viz | --interactive_viz | --no-interactive_viz]
-                 [--img-viz /PATH/TO/BACKGROUND_IMG.nii.gz] [--orig-color R,G,B] [--fsub-color R,G,B]
-                 [--roi1-color R,G,B] [--roi2-color R,G,B] [--roi-opacity OPACITY]
+                 [--include-mask /PATH/TO/INCLUDE_MASK.nii.gz|.mif]
+                 [--streamline-mask /PATH/TO/STREAMLINE_MASK.nii.gz|.mif]
+                 [--fs2dwi /PATH/TO/FS2DWI-REG.txt | --dwi2fs /PATH/TO/DWI2FS-REG.txt]
+                 [--reg-type {mrtrix,itk}] [--search-dist DISTANCE]
+                 [--search-type {forward,radial,reverse,end,all}]
+                 [--sift2-weights /PATH/TO/SIFT2_WEIGHTS.csv|.txt] [--wmfod /PATH/TO/WMFOD.nii.gz|.mif]
+                 [--n-streamlines N] [--tckgen-params /PATH/TO/PARAMS.txt] [--make-viz]
+                 [--interactive-viz] [--img-viz /PATH/TO/BACKGROUND_IMG.nii.gz] [--orig-color R,G,B]
+                 [--fsub-color R,G,B] [--roi1-color R,G,B] [--roi2-color R,G,B] [--roi-opacity OPACITY]
                  [--fsub-linewidth LINEWIDTH] [--axial-offset OFFSET] [--saggital-offset OFFSET]
                  [--camera-angle {saggital,axial}]
 
@@ -74,56 +78,60 @@ options:
   -h, --help            show this help message and exit
   --subject sub-XXX     Subject name. This must match the subject name in the FreeSurfer folder.
   --tract /PATH/TO/TRACT.trk|.tck
-                        Path to original tract file (.tck or .trk). Should be in DWI space.
+                        Path to original tract file (.tck or .trk). Should be in DWI space. Must either
+                        specify this or choose '--generate'.
+  --generate            Generate an FSuB instead of extracting it from a tract file. Must either
+                        specify this or input a file for '--tract'.
   --tract-name TRACT_NAME, --tract_name TRACT_NAME
                         Label for tract used in file names. Should not contain spaces. E.g., 'LeftAF'
                         or 'wholebrain'. Default is 'tract'.
   --roi1 /PATH/TO/ROI1.mgz|.label|.gii|.nii.gz
-                        First ROI file (.mgz, .label, .gii, or .nii.gz). File should be binary (1 in
-                        ROI, 0 elsewhere).
+                        Path to first ROI file (.mgz, .label, .gii, or .nii.gz). File should be binary
+                        (1 in ROI, 0 elsewhere).
   --roi1-name ROI1_NAME, --roi1_name ROI1_NAME
                         Label for ROI1 outputs. Default is roi1
   --roi2 /PATH/TO/ROI2.mgz|.label|.gii|.nii.gz
-                        Second ROI file (.mgz, .label, .gii, or .nii.gz). If specified, program will
-                        find streamlines connecting ROI1 and ROI2. File should be binary (1 in ROI, 0
-                        elsewhere).
+                        Path to second ROI file (.mgz, .label, .gii, or .nii.gz). If specified, program
+                        will find streamlines connecting ROI1 and ROI2. File should be binary (1 in
+                        ROI, 0 elsewhere).
   --roi2-name ROI2_NAME, --roi2_name ROI2_NAME
                         Label for ROI2 outputs. Default is roi2
-  --fs-dir /PATH/TO/FreeSurfer/SUBJECTSDIR/, --fs_dir /PATH/TO/FreeSurfer/SUBJECTSDIR/
-                        Path to FreeSurfer subjects directory. It should have a folder in it with your
-                        subject name. Required unless --skip-roi-proj is specified.
   --hemi {lh|rh|lh,rh|rh,lh}
                         FreeSurfer hemisphere name(s) corresponding to locations of the ROIs, separated
                         by a comma (no spaces) if different for two ROIs (e.g 'lh,rh'). Required unless
                         --skip-roi-proj is specified.
-  --fs2dwi /PATH/TO/FS2DWI-REG.lta|.txt|.mat
-                        Path to registration for mapping FreeSurfer-to-DWI space. Mutually exclusive
-                        with --dwi2fs.
-  --dwi2fs /PATH/TO/DWI2FS-REG.lta|.txt|.mat
-                        Path to registration for mapping DWI-to-FreeSurfer space. Mutually exclusive
-                        with --fs2dwi.
-  --reg-type {LTA,ITK,FSL}, --reg_type {LTA,ITK,FSL}
-                        Registration format. LTA is the default for FreeSurfer and is .lta, ITK comes
-                        from ITK and ANTS and is presumed to be a .txt, FSL comes from FSL and is .mat.
-                        If left blank, will try to infer from file extension. Only try defining this if
-                        inferring the registration type does not work and creates errors.
-  --gmwmi /PATH/TO/GMWMI.nii.gz|.mif
-                        Path to GMWMI image (.nii.gz or .mif). If not specified or not found, it will
-                        be created from FreeSurfer inputs. Ignored if --skip-gmwmi-intersection is
-                        specified. Should be in DWI space.
-  --gmwmi-thresh THRESHOLD, --gmwmi_thresh THRESHOLD
-                        Threshold above which to binarize the GMWMI image. Default is 0.0
-  --search-dist DISTANCE, --search_dist DISTANCE
-                        Distance in mm to search from streamlines for ROIs (float). Default is 3.0 mm.
-  --search-type {forward,radial,reverse}, --search_type {forward,radial,reverse}
-                        Method of searching for streamlines. Default is forward.
+  --fs-dir /PATH/TO/FreeSurfer/SUBJECTSDIR/, --fs_dir /PATH/TO/FreeSurfer/SUBJECTSDIR/
+                        Path to FreeSurfer subjects directory. It should have a folder in it with your
+                        subject name. Required unless --skip-roi-proj is specified. If not specified,
+                        will be inferred from environment (e.g., `echo $SUBJECTS_DIR`).
   --projfrac-params START,STOP,DELTA, --projfrac_params START,STOP,DELTA
                         Comma delimited list (no spaces) of projfrac parameters for mri_surf2vol /
                         mri_label2vol. Provided as start,stop,delta. Default is --projfrac-
-                        params='-1,0,0.1'. Start must be negative to project into white matter.
-  --sift2-weights /PATH/TO/SIFT2_WEIGHTS.csv, --sift2_weights /PATH/TO/SIFT2_WEIGHTS.csv
-                        Path to SIFT2 weights file. If supplied, the sum of weights will be output with
-                        streamline extraction.
+                        params='-1,0,0.05'. Start must be negative to project into white matter.
+  --fivett /PATH/TO/5TT.nii.gz|.mif
+                        Path to 5TT image (.nii.gz or .mif). Skips making it from FreeSurfer inputs.
+                        This is used if you opt to intersect ROIs with the GMWMI, and/or an FSuB is
+                        being generated (--generate).
+  --gmwmi-thresh THRESHOLD, --gmwmi_thresh THRESHOLD
+                        Threshold above which to binarize the GMWMI image. Default is 0.0
+  --skip-fivett-registration, --skip_fivett-registration
+                        If not specified, a registration (if supplied) will be applied to the 5TT and
+                        GMWMI images. Specify this flag if your 5TT image is in DWI space, but
+                        FreeSurfer and DWI inputs are not aligned.
+  --skip-roi-projection, --skip_roi_projection
+                        Skip projecting ROI into WM (not recommended unless ROI is already projected).
+                        Default is to not skip projection. ROIs must already be in .nii.gz if this is
+                        specified.
+  --skip-gmwmi-intersection, --skip_gmwmi_intersection
+                        Skip intersecting ROI with GMWMI (not recommended unless ROI is already
+                        intersected). Default is to not skip intersection.
+  --out-dir /PATH/TO/OUTDIR/, --out_dir /PATH/TO/OUTDIR/
+                        Directory where outputs will be stored (a subject-folder will be created there
+                        if it does not exist). Default is current directory.
+  --overwrite, --no-overwrite
+                        Whether to overwrite outputs. Default is to overwrite. (default: True)
+
+Options for Streamline Masking:
   --exclude-mask /PATH/TO/EXCLUDE_MASK.nii.gz|.mif, --exclude_mask /PATH/TO/EXCLUDE_MASK.nii.gz|.mif
                         Path to exclusion mask (.nii.gz or .mif). If specified, streamlines that enter
                         this mask will be discarded. Must be in DWI space.
@@ -131,25 +139,48 @@ options:
                         Path to inclusion mask (.nii.gz or .mif). If specified, streamlines must
                         intersect with this mask to be included (e.g., a waypoint ROI). Must be in DWI
                         space.
-  --out-dir /PATH/TO/OUTDIR/, --out_dir /PATH/TO/OUTDIR/
-                        Directory where outputs will be stored (a subject-folder will be created there
-                        if it does not exist). Default is current directory.
-  --overwrite, --no-overwrite
-                        Whether to overwrite outputs. Default is to overwrite. (default: True)
-  --skip-roi-projection, --no-skip-roi-projection, --skip_roi_projection, --no-skip_roi_projection
-                        Whether to skip projecting ROI into WM (not recommended unless ROI is already
-                        projected). Default is to not skip projection. (default: False)
-  --skip-gmwmi-intersection, --no-skip-gmwmi-intersection, --skip_gmwmi_intersection, --no-skip_gmwmi_intersection
-                        Whether to skip intersecting ROI with GMWMI (not recommended unless ROI is
-                        already intersected). Default is to not skip intersection. (default: False)
+  --streamline-mask /PATH/TO/STREAMLINE_MASK.nii.gz|.mif, --streamline_mask /PATH/TO/STREAMLINE_MASK.nii.gz|.mif
+                        Path to streamline mask (.nii.gz or .mif). If specified, streamlines exiting
+                        this mask will be truncated. Must be in DWI space.
+
+Options for Registration:
+  --fs2dwi /PATH/TO/FS2DWI-REG.txt
+                        Path to MRTrix-ready or ANTs/ITK-generated registration for mapping FreeSurfer-
+                        to-DWI space. Mutually exclusive with --dwi2fs.
+  --dwi2fs /PATH/TO/DWI2FS-REG.txt
+                        Path to MRTrix-ready or ANTs/ITK-generated registration for mapping DWI-to-
+                        FreeSurfer space. Mutually exclusive with --fs2dwi.
+  --reg-type {mrtrix,itk}, --reg_type {mrtrix,itk}
+                        Registration software compatability for .txt files. Only set if the program
+                        does not figure this out automatically.
+
+Options Specific to Streamline Extractor:
+  --search-dist DISTANCE, --search_dist DISTANCE
+                        Distance in mm to search from streamlines for ROIs (float). Default is 3.0 mm.
+                        Ignored if --search-type is 'end' or 'all'.
+  --search-type {forward,radial,reverse,end,all}, --search_type {forward,radial,reverse,end,all}
+                        Method of searching for streamlines (see documentation for MRTrix3
+                        'tck2connectome'). Default is radial.
+  --sift2-weights /PATH/TO/SIFT2_WEIGHTS.csv|.txt, --sift2_weights /PATH/TO/SIFT2_WEIGHTS.csv|.txt
+                        Path to SIFT2 weights file corresponding to input tract. If supplied, the sum
+                        of weights will be output with streamline extraction.
+
+Options Specific to Streamline Generator:
+  --wmfod /PATH/TO/WMFOD.nii.gz|.mif
+                        Path to white matter FOD image (.nii.gz or .mif). Used as source for iFOD2
+                        tracking.
+  --n-streamlines N, --n_streamlines N
+                        Number of streamlines per generated FSuB ('-select' param of tckgen). Should be
+                        an even number. Default is 1000.
+  --tckgen-params /PATH/TO/PARAMS.txt, --tckgen_params /PATH/TO/PARAMS.txt
+                        Path to .txt file containing additional arguments for MRtrix tckgen, space-
+                        delimited (e.g., -minlength X -maxlength X)
 
 Options for Visualization:
-  --make-viz, --no-make-viz, --make_viz, --no-make_viz
+  --make-viz, --make_viz
                         Whether to make the output figure. Default is to not produce the figure.
-                        (default: False)
-  --interactive-viz, --no-interactive-viz, --interactive_viz, --no-interactive_viz
+  --interactive-viz, --interactive_viz
                         Whether to produce an interactive visualization. Default is not interactive.
-                        (default: False)
   --img-viz /PATH/TO/BACKGROUND_IMG.nii.gz, --img-viz /PATH/TO/BACKGROUND_IMG.nii.gz
                         Path to image to plot in visualization (.nii.gz). Should be in DWI space.
   --orig-color R,G,B, --orig_color R,G,B
@@ -177,6 +208,7 @@ Options for Visualization:
   --camera-angle {saggital,axial}, --camera_angle {saggital,axial}
                         Camera angle for visualization. Default is 'saggital.'
  ```
+ 
  ### `streamline_scalar`
  The `streamline_scalar` function can be used to find summary stats of a given scalar map (e.g. fractional anisotropy) within a given tract, as well as produce tract-profiles for these scalars along the length of the tract.
 ```
@@ -221,7 +253,7 @@ We welcome any questions, feedback, or collaboration! We ask that you start by o
 
 MIT License
 
-Copyright (c) 2022 Steven Meisler
+Copyright (c) 2023 Steven Meisler
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

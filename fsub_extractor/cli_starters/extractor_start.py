@@ -64,11 +64,39 @@ def get_parser():
         default="roi2",
     )
     parser.add_argument(
+        "--hemi",
+        help="FreeSurfer hemisphere name(s) corresponding to locations of the ROIs, separated by a comma (no spaces) if different for two ROIs (e.g 'lh,rh'). Required unless --skip-roi-proj is specified.",
+        choices=["lh", "rh", "lh,rh", "rh,lh"],
+        metavar=("{lh|rh|lh,rh|rh,lh}"),
+    )
+    parser.add_argument(
         "--fs-dir",
         "--fs_dir",
-        help="Path to FreeSurfer subjects directory. It should have a folder in it with your subject name. Required unless --skip-roi-proj is specified.",
+        help="Path to FreeSurfer subjects directory. It should have a folder in it with your subject name. Required unless --skip-roi-proj is specified. If not specified, will be inferred from environment (e.g., `echo $SUBJECTS_DIR`).",
         type=op.abspath,
         metavar=("/PATH/TO/FreeSurfer/SUBJECTSDIR/"),
+    )
+    # parser.add_argument(
+    #    "--fs-license",
+    #    "--fs-license",
+    #    help="Path to FreeSurfer license.",
+    #    type=op.abspath,
+    #    metavar=("/PATH/TO/FS_LICENSE.txt),
+    #    action=CheckExt({".txt"}),
+    # )  # TODO: MAKE REQUIRED LATER FOR CONTAINER?
+    # parser.add_argument(
+    #    "--gmwmi",
+    #    help="Path to GMWMI image (.nii.gz or .mif). If not specified or not found, it will be created from FreeSurfer inputs. Ignored if --skip-gmwmi-intersection is specified. Should be in DWI space.",
+    #    type=validate_file,
+    #    metavar=("/PATH/TO/GMWMI.nii.gz|.mif"),
+    #    action=CheckExt({".nii.gz", ".mif"}),
+    # )
+    parser.add_argument(
+        "--projfrac-params",
+        "--projfrac_params",
+        help="Comma delimited list (no spaces) of projfrac parameters for mri_surf2vol / mri_label2vol. Provided as start,stop,delta. Default is --projfrac-params='-1,0,0.05'. Start must be negative to project into white matter.",
+        default="-1,0,0.05",
+        metavar=("START,STOP,DELTA"),
     )
     parser.add_argument(
         "--fivett",
@@ -77,13 +105,6 @@ def get_parser():
         metavar=("/PATH/TO/5TT.nii.gz|.mif"),
         action=CheckExt({".nii.gz", ".mif"}),
     )
-    # parser.add_argument(
-    #    "--gmwmi",
-    #    help="Path to GMWMI image (.nii.gz or .mif). If not specified or not found, it will be created from FreeSurfer inputs. Ignored if --skip-gmwmi-intersection is specified. Should be in DWI space.",
-    #    type=validate_file,
-    #    metavar=("/PATH/TO/GMWMI.nii.gz|.mif"),
-    #    action=CheckExt({".nii.gz", ".mif"}),
-    # )
     parser.add_argument(
         "--gmwmi-thresh",
         "--gmwmi_thresh",
@@ -95,73 +116,14 @@ def get_parser():
     parser.add_argument(
         "--skip-fivett-registration",
         "--skip_fivett-registration",
-        help="If not specified, a registration (if supplied) will be applied to the 5TT image. Specify this flag if your 5TT image is in DWI space, but FreeSurfer and DWI inputs are not aligned.",
+        help="If not specified, a registration (if supplied) will be applied to the 5TT and GMWMI images. Specify this flag if your 5TT image is in DWI space, but FreeSurfer and DWI inputs are not aligned.",
         default=False,
         action="store_true",
     )
     parser.add_argument(
-        "--hemi",
-        help="FreeSurfer hemisphere name(s) corresponding to locations of the ROIs, separated by a comma (no spaces) if different for two ROIs (e.g 'lh,rh'). Required unless --skip-roi-proj is specified.",
-        choices=["lh", "rh", "lh,rh", "rh,lh"],
-        metavar=("{lh|rh|lh,rh|rh,lh}"),
-    )
-    parser.add_argument(
-        "--out-dir",
-        "--out_dir",
-        help="Directory where outputs will be stored (a subject-folder will be created there if it does not exist). Default is current directory.",
-        type=op.abspath,
-        default=getcwd(),
-        metavar=("/PATH/TO/OUTDIR/"),
-    )
-    # parser.add_argument(
-    #    "--fs-license",
-    #    "--fs-license",
-    #    help="Path to FreeSurfer license.",
-    #    type=op.abspath,
-    #    metavar=("/PATH/TO/FS_LICENSE.txt),
-    #    action=CheckExt({".txt"}),
-    # )  # TODO: MAKE REQUIRED LATER FOR CONTAINER?
-    parser.add_argument(
-        "--projfrac-params",
-        "--projfrac_params",
-        help="Comma delimited list (no spaces) of projfrac parameters for mri_surf2vol / mri_label2vol. Provided as start,stop,delta. Default is --projfrac-params='-1,0,0.05'. Start must be negative to project into white matter.",
-        default="-1,0,0.05",
-        metavar=("START,STOP,DELTA"),
-    )
-    parser.add_argument(
-        "--exclude-mask",
-        "--exclude_mask",
-        help="Path to exclusion mask (.nii.gz or .mif). If specified, streamlines that enter this mask will be discarded. Must be in DWI space.",
-        type=validate_file,
-        metavar=("/PATH/TO/EXCLUDE_MASK.nii.gz|.mif"),
-        action=CheckExt({".nii.gz", ".mif"}),
-    )
-    parser.add_argument(
-        "--include-mask",
-        "--include_mask",
-        help="Path to inclusion mask (.nii.gz or .mif). If specified, streamlines must intersect with this mask to be included (e.g., a waypoint ROI). Must be in DWI space.",
-        type=validate_file,
-        metavar=("/PATH/TO/INCLUDE_MASK.nii.gz|.mif"),
-        action=CheckExt({".nii.gz", ".mif"}),
-    )
-    parser.add_argument(
-        "--streamline-mask",
-        "--streamline_mask",
-        help="Path to streamline mask (.nii.gz or .mif). If specified, streamlines exiting this mask will be truncated. Must be in DWI space.",
-        type=validate_file,
-        metavar=("/PATH/TO/STREAMLINE_MASK.nii.gz|.mif"),
-        action=CheckExt({".nii.gz", ".mif"}),
-    )
-    parser.add_argument(
-        "--overwrite",
-        help="Whether to overwrite outputs. Default is to overwrite.",
-        default=True,
-        action=argparse.BooleanOptionalAction,
-    )
-    parser.add_argument(
         "--skip-roi-projection",
         "--skip_roi_projection",
-        help="Skip projecting ROI into WM (not recommended unless ROI is already projected). Default is to not skip projection.",
+        help="Skip projecting ROI into WM (not recommended unless ROI is already projected). Default is to not skip projection. ROIs must already be in .nii.gz if this is specified.",
         default=False,
         action="store_true",
     )
@@ -171,6 +133,47 @@ def get_parser():
         help="Skip intersecting ROI with GMWMI (not recommended unless ROI is already intersected). Default is to not skip intersection.",
         default=False,
         action="store_true",
+    )
+    parser.add_argument(
+        "--out-dir",
+        "--out_dir",
+        help="Directory where outputs will be stored (a subject-folder will be created there if it does not exist). Default is current directory.",
+        type=op.abspath,
+        default=getcwd(),
+        metavar=("/PATH/TO/OUTDIR/"),
+    )
+    parser.add_argument(
+        "--overwrite",
+        help="Whether to overwrite outputs. Default is to overwrite.",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+    )
+
+    # Streamline masking arguments
+    mask_group = parser.add_argument_group("Options for Streamline Masking")
+    mask_group.add_argument(
+        "--exclude-mask",
+        "--exclude_mask",
+        help="Path to exclusion mask (.nii.gz or .mif). If specified, streamlines that enter this mask will be discarded. Must be in DWI space.",
+        type=validate_file,
+        metavar=("/PATH/TO/EXCLUDE_MASK.nii.gz|.mif"),
+        action=CheckExt({".nii.gz", ".mif"}),
+    )
+    mask_group.add_argument(
+        "--include-mask",
+        "--include_mask",
+        help="Path to inclusion mask (.nii.gz or .mif). If specified, streamlines must intersect with this mask to be included (e.g., a waypoint ROI). Must be in DWI space.",
+        type=validate_file,
+        metavar=("/PATH/TO/INCLUDE_MASK.nii.gz|.mif"),
+        action=CheckExt({".nii.gz", ".mif"}),
+    )
+    mask_group.add_argument(
+        "--streamline-mask",
+        "--streamline_mask",
+        help="Path to streamline mask (.nii.gz or .mif). If specified, streamlines exiting this mask will be truncated. Must be in DWI space.",
+        type=validate_file,
+        metavar=("/PATH/TO/STREAMLINE_MASK.nii.gz|.mif"),
+        action=CheckExt({".nii.gz", ".mif"}),
     )
 
     # Registration arguments
@@ -198,7 +201,7 @@ def get_parser():
     )
 
     # Extractor-specific arguments
-    ext_args = parser.add_argument_group("Options for Streamline Extractor")
+    ext_args = parser.add_argument_group("Options Specific to Streamline Extractor")
     ext_args.add_argument(
         "--search-dist",
         "--search_dist",
@@ -217,14 +220,14 @@ def get_parser():
     ext_args.add_argument(
         "--sift2-weights",
         "--sift2_weights",
-        help="Path to SIFT2 weights file. If supplied, the sum of weights will be output with streamline extraction.",
+        help="Path to SIFT2 weights file corresponding to input tract. If supplied, the sum of weights will be output with streamline extraction.",
         type=validate_file,
         metavar=("/PATH/TO/SIFT2_WEIGHTS.csv|.txt"),
         action=CheckExt({".csv", ".txt"}),
     )
 
     # Generator-specific arguments
-    gen_args = parser.add_argument_group("Options for Streamline Generator")
+    gen_args = parser.add_argument_group("Options Specific to Streamline Generator")
     gen_args.add_argument(
         "--wmfod",
         help="Path to white matter FOD image (.nii.gz or .mif). Used as source for iFOD2 tracking.",
@@ -417,27 +420,27 @@ def main():
         roi1_name=args.roi1_name,
         roi2=args.roi2,
         roi2_name=args.roi2_name,
-        fs_dir=args.fs_dir,
-        fivett=args.fivett,
-        skip_fivett_registration=args.skip_fivett_registration,
         hemi=args.hemi,
-        fs2dwi=args.fs2dwi,
-        dwi2fs=args.dwi2fs,
-        reg_type=args.reg_type,
+        fs_dir=args.fs_dir,
         # fs_license=args.fs_license,
         # gmwmi=args.gmwmi,
-        gmwmi_thresh=args.gmwmi_thresh,
-        search_dist=str(args.search_dist),
-        search_type=str(args.search_type),
         projfrac_params=args.projfrac_params,
-        sift2_weights=args.sift2_weights,
+        fivett=args.fivett,
+        gmwmi_thresh=args.gmwmi_thresh,
+        skip_fivett_registration=args.skip_fivett_registration,
+        skip_roi_projection=args.skip_roi_projection,
+        skip_gmwmi_intersection=args.skip_gmwmi_intersection,
+        out_dir=args.out_dir,
+        overwrite=args.overwrite,
         exclude_mask=args.exclude_mask,
         include_mask=args.include_mask,
         streamline_mask=args.streamline_mask,
-        out_dir=args.out_dir,
-        overwrite=args.overwrite,
-        skip_roi_projection=args.skip_roi_projection,
-        skip_gmwmi_intersection=args.skip_gmwmi_intersection,
+        fs2dwi=args.fs2dwi,
+        dwi2fs=args.dwi2fs,
+        reg_type=args.reg_type,
+        search_dist=str(args.search_dist),
+        search_type=str(args.search_type),
+        sift2_weights=args.sift2_weights,
         wmfod=args.wmfod,
         n_streamlines=args.n_streamlines,
         tckgen_params=args.tckgen_params,

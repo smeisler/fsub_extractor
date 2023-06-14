@@ -37,11 +37,13 @@ def project_roi(
     Outputs
     =======
     Function returns path to the projected ROI.
-    Image is saved out to outpath_base + gmwmi_intersected.nii.gz
+    Image is saved out to "outdir/{subject}_rec-surf2vol/label2vol_space-FS_desc-{roi_name}.nii.gz"
     """
 
+    # Tell FreeSurfer where subject data are
     os.environ["SUBJECTS_DIR"] = fs_dir
 
+    # If starting with volume
     if roi_in[-7:] == ".nii.gz":
         print("Using volumetric ROI projection pipeline")
 
@@ -50,8 +52,8 @@ def project_roi(
             outdir, f"{subject}_rec-vol2surf_space-FS_desc-{roi_name}.func.gii"
         )
 
+        # Project to surface
         mri_vol2surf = find_program("mri_vol2surf")
-        # Use identity/subject for registration
         cmd_mri_vol2surf = [
             mri_vol2surf,
             "--src",
@@ -70,9 +72,10 @@ def project_roi(
     else:
         roi_surf = roi_in
 
+    # If starting with a .label
     if roi_surf[-6:] == ".label":
         print("Projecting FS .label file")
-        roi_vol = op.join(
+        roi_projected = op.join(
             outdir, f"{subject}_rec-label2vol_space-FS_desc-{roi_name}.nii.gz"
         )
         mri_label2vol = find_program("mri_label2vol")
@@ -81,13 +84,13 @@ def project_roi(
             "--label",
             roi_surf,
             "--o",
-            roi_vol,
+            roi_projected,
             "--subject",
             subject,
             "--hemi",
             hemi,
             "--temp",
-            op.join(fs_dir, subject, "mri", "orig.mgz"),  # NOTE: was aseg.mgz
+            op.join(fs_dir, subject, "mri", "orig.mgz"),
             "--proj",
             "frac",
             projfrac_params[0],
@@ -97,26 +100,14 @@ def project_roi(
         ]
         run_command(cmd_mri_label2vol)
 
-        return roi_vol
-
+    # Go from surface to volume
     if roi_surf[-4:] == ".mgz" or roi_surf[-4:] == ".gii":
         print("Projecting FS .mgz/.gii surface file")
-        roi_vol = op.join(
+        roi_projected = op.join(
             outdir, f"{subject}_rec-surf2vol_space-FS_desc-{roi_name}.nii.gz"
         )
         mri_surf2vol = find_program("mri_surf2vol")
-        # cmd_mri_surf2vol = [
-        #    mri_surf2vol,
-        #    "--so",
-        #    op.join(fs_dir, subject, "surf", f"{hemi}.white"),
-        #    roi_surf,
-        #    "--o",
-        #    roi_vol,
-        #    "--subject",
-        #    subject,
-        #    "--sd",
-        #    fs_dir,
-        # ]
+
         cmd_mri_surf2vol = [
             mri_surf2vol,
             "--surfval",
@@ -136,12 +127,12 @@ def project_roi(
             "--template",
             op.join(fs_dir, subject, "mri", "orig.mgz"),
             "--o",
-            roi_vol,
+            roi_projected,
         ]
 
         run_command(cmd_mri_surf2vol)
 
-        return roi_vol
+    return roi_projected
 
 
 def intersect_gmwmi(roi_in, roi_name, gmwmi, outpath_base, overwrite=True):
@@ -161,24 +152,42 @@ def intersect_gmwmi(roi_in, roi_name, gmwmi, outpath_base, overwrite=True):
     Outputs
     =======
     Function returns path to the intersected image.
-    Image is saved out to outpath_base + _gmwmi_intersected.nii.gz
+    Intersected image is saved out to "{outpath_base}_rec-intersected_desc-{roi_name}.nii.gz"
     """
 
+    # Make sure voxel size between ROI and GMWMI match
+    mrgrid = find_program("mrgrid")
+    mrgrid_out = f"{outpath_base}_rec-regridded_desc-{roi_name}.nii.gz"
+    cmd_mrgrid = [
+        mrgrid,
+        roi_in,
+        "regrid",
+        "-template",
+        gmwmi,
+        "-interp",
+        "nearest",
+        mrgrid_out,
+    ]
+
+    # Now run intersection
     mrcalc = find_program("mrcalc")
     mrcalc_out = f"{outpath_base}_rec-intersected_desc-{roi_name}.nii.gz"
     cmd_mrcalc = [
         mrcalc,
         gmwmi,
-        roi_in,
+        mrgrid_out,
         "-mult",
         mrcalc_out,
     ]
 
     if overwrite == False:
+        overwrite_check(mrgrid_out)
         overwrite_check(mrcalc_out)
     else:
+        cmd_mrgrid += ["-force"]
         cmd_mrcalc += ["-force"]
 
+    run_command(cmd_mrgrid)
     run_command(cmd_mrcalc)
 
     return mrcalc_out
@@ -191,18 +200,18 @@ def merge_rois(roi1, roi2, out_file, overwrite=True):
     Parameters
     ==========
     roi1: str
-            abspath to the first ROI mask file
+            Abspath to the first ROI mask file
     roi2: str
-            abspath to the second ROI mask file
+            Abspath to the second ROI mask file
     out_file: str
-            abspath of filename to save output merged ROI file
+            Abspath of filename to save output merged ROI file
     overwrite: bool
             Whether to allow overwriting outputs
 
     Outputs
     =======
     out_file: str
-            abspath of output file created by this function
+            Abspath of output file created by this function
 
     """
 
@@ -231,27 +240,30 @@ def merge_rois(roi1, roi2, out_file, overwrite=True):
 
 
 def register_to_dwi(
-    roi_in, out_file, mrtrix_xfm, invert=False, interp="nearest", overwrite=True
+    roi_in, out_file, mrtrix_xfm, invert=False, interp="cubic", overwrite=True
 ):
     """Uses MRTrix 'mrtransform' to register an ROI
 
     Parameters
     ==========
     roi_in: str
-            abspath to the ROI in
+            Abspath to the ROI in
     out_file: str
-            abspath of filename to save output registered ROI file
+            Abspath of filename to save output registered ROI file
     mrtrix_xfm: str
-            abspath to transform in mrtrix-readable format
+            Abspath to transform in mrtrix-readable format
+    invert: bool
+            Whether to invert the transformation
     interp: str
-            method of interpolation (we default to 'nearest' for masks)
+            Method of interpolation (use "nearest" for masks)
     overwrite: bool
             Whether to allow overwriting outputs
 
     Outputs
     =======
     out_file: str
-            abspath of registered ROI
+            Abspath of registered ROI
+    Registered image is saved to out_file
 
     """
 
@@ -272,7 +284,6 @@ def register_to_dwi(
     if invert:
         cmd_mrtransform += ["-inverse"]
 
-    # Abort if file already exists and overwriting not allowed
     if overwrite == False:
         overwrite_check(outpath)
     else:
