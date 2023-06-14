@@ -45,7 +45,7 @@ The `extractor` function has three main use cases:
     * Best-suited for looking at segmented bundles, as opposed to whole-brain tractograms.
 2. Deriving streamlines that connect a pair of ROIs.
     * Whole-brain or segmented bundles can work, depending on the ROI locations and sizes.
-3. In progress: *Generating* streamlines that connect to the ROI(s) (see the `--generate` flag).
+3. *Generating* streamlines that connect to the ROI(s) (see the `--generate` flag, FEATURE IS IN BETA).
 
 Please review the full argument space below:
 ```

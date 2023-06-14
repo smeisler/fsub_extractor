@@ -226,7 +226,7 @@ def get_parser():
         help="Path to white matter FOD image (.nii.gz or .mif). Used as source for iFOD2 tracking.",
         type=validate_file,
         metavar=("/PATH/TO/WMFOD.nii.gz|.mif"),
-        action=CheckExt({".nii.gz", ".mif"}),
+        action=CheckExt({".nii.gz", ".mif", ".mif.gz"}),
     )
     gen_args.add_argument(
         "--n-streamlines",
@@ -403,12 +403,6 @@ def main():
     # Parse arguments and run the main code
     parser = get_parser()
     args = parser.parse_args()
-
-    # Temp: generator doesn't work yet, so do not let it run
-    if args.generate:
-        raise Exception(
-            "Generator function (--generate) is not functional yet. Please use --tract method instead, for now."
-        )
 
     main = extractor(
         subject=args.subject,
