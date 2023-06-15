@@ -11,17 +11,17 @@ assignees: smeisler
 <A clear and concise description of what the bug is.>
 
 ## Command used
-<A clear and concise description of what the bug is. Please surround with tick marks (`) for code markdown styling. >
+<Command used. Please surround with tick marks for code markdown styling>
 
 ## Log output
-<Log output from terminal. Please surround with tick marks (`) for code markdown styling. >
+<Log output from terminal. Please surround with tick marks for code markdown styling. >
 
 ## Screenshots
-<If applicable, add screenshots to help explain your problem. >
+<If applicable add screenshots to help explain your problem >
 
 ## System information
-<E.g., operating system, method of running, memory/cpu, etc. >
-
+<Things such as operating system or memory stuff >
 
 ## Additional context?
 <Add any other context about the problem here.>
+
