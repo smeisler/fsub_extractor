@@ -99,7 +99,7 @@ def extract_tck_mrtrix(
         tck2connectome_assignments_out,
     ]
     if search_type == "end" or search_type == "all":
-        cmd_tck2connectome += ["-assignment_{search_type}_voxels"]
+        cmd_tck2connectome += [f"-assignment_{search_type}_voxels"]
     else:
         cmd_tck2connectome += [f"-assignment_{search_type}_search", search_dist]
 
