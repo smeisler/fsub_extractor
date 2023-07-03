@@ -67,7 +67,7 @@ def get_parser():
         "--out_dir",
         help="Directory where outputs will be stored (a subject-folder will be created there if it does not exist). Default is current directory.",
         type=op.abspath,
-        default=os.getcwd(),
+        default=getcwd(),
         metavar=("/PATH/TO/OUTDIR/"),
     )
     parser.add_argument(
