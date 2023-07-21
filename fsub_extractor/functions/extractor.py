@@ -98,7 +98,7 @@ def extractor(
     ):
         if op.isfile(op.join(fs_dir, subject, "surf", "lh.white")) == False:
             raise Exception(
-                f"{fs_sub_dir} does not appear to be contain completed recon-all outputs."
+                f"{op.join(fs_dir,subject)} does not appear to contain completed recon-all outputs."
             )
 
     if skip_roi_projection == False:
