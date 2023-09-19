@@ -22,6 +22,7 @@ foo@bar:~$ pip install -e .    # for developer to update
 ## Dependencies and Prerequisites
 Dependencies include (code might work with lower versions, but has not been extensively tested):
 * Python >= 3.9.0
+* Pydra >= 0.22.0
 * MRTrix >= 3.0.3
 * DIPY >= 1.5.0
 * vtk >= 9.1.0
