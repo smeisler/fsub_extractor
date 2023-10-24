@@ -198,9 +198,9 @@ def get_parser():
     ext_args.add_argument(
         "--search-dist",
         "--search_dist",
-        help="Distance in mm to search from streamlines for ROIs (float). Default is 3.0 mm. Ignored if --search-type is 'end' or 'all'.",
+        help="Distance in mm to search from streamlines for ROIs (float). Default is 2.0 mm. Ignored if --search-type is 'end' or 'all'.",
         type=check_positive_float,
-        default=3.0,
+        default=2.0,
         metavar=("DISTANCE"),
     )
     ext_args.add_argument(
