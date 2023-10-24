@@ -38,8 +38,8 @@ def extract_tck_mrtrix(
     rois_in,
     outpath_base,
     two_rois,
-    search_dist=3.0,
-    search_type="forward",
+    search_dist=2.0,
+    search_type="radial",
     sift2_weights=None,
     exclude_mask=None,
     include_mask=None,
@@ -61,7 +61,7 @@ def extract_tck_mrtrix(
     search_dist: float
             How far to search ahead of streamlines for ROIs, in mm
     search_type: string
-            Method of searching for streamlines (forward, reverse, or radial).
+            Method of searching for streamlines (forward, reverse, radial, end, or all).
     two_rois: bool
             True if two ROIs in rois_in, False, if one ROI in rois_in
     sift2_weights: str
