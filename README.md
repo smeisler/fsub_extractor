@@ -31,6 +31,13 @@ This software was conceived of during NeuroHackademy 2022.
         </a>
     </td>
     <td align="center">
+        <a href="https://github.com/yarikoptic">
+            <img src="https://avatars.githubusercontent.com/u/39889?v=4" width="100;" alt="yarikoptic"/>
+            <br />
+            <sub><b>Yaroslav Halchenko</b></sub>
+        </a>
+    </td>
+    <td align="center">
         <a href="https://github.com/drewwint">
             <img src="https://avatars.githubusercontent.com/u/53614162?v=4" width="100;" alt="drewwint"/>
             <br />
