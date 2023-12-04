@@ -1,5 +1,5 @@
 # _fsub-extractor_
-This is an application for extracing **F**unctional **Su**bcomponents of **B**undles. This software can take gray matter regions, project them into white matter, and find streamlines that connect to them. It can also produce a visualization of the streamlines and sample scalar values along these streamlines (tract profile and average across all streamlines).
+This is an application for extracting **F**unctional **Su**bcomponents of **B**undles. This software can take gray matter regions, project them into white matter, and find streamlines that connect to them. It can also produce a visualization of the streamlines and sample scalar values along these streamlines (tract profile and average across all streamlines).
 
 This software was conceived of during NeuroHackademy 2022.
 

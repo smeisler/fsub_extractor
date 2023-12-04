@@ -190,7 +190,7 @@ def get_parser():
         "--reg-type",
         "--reg_type",
         choices=["mrtrix", "itk"],
-        help="Registration software compatability for .txt files. Only set if the program does not figure this out automatically.",
+        help="Registration software compatibility for .txt files. Only set if the program does not figure this out automatically.",
     )
 
     # Extractor-specific arguments
@@ -326,7 +326,7 @@ def get_parser():
     viz_args.add_argument(
         "--saggital-offset",
         "--saggital_offset",
-        help="Float (-1,1) describing where to display saggital slice. -1.0 is left, 1.0 is right. Default is 0.0.",
+        help="Float (-1,1) describing where to display sagittal slice. -1.0 is left, 1.0 is right. Default is 0.0.",
         type=float,
         default=0.0,
         metavar=("OFFSET"),
@@ -335,9 +335,9 @@ def get_parser():
     viz_args.add_argument(
         "--camera-angle",
         "--camera_angle",
-        choices=["saggital", "axial"],
+        choices=["sagittal", "axial"],
         help="Camera angle for visualization. Default is 'saggital.'",
-        default="saggital",
+        default="sagittal",
     )
 
     return parser

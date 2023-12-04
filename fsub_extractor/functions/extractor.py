@@ -118,15 +118,15 @@ def extractor(
             )
         if float(projfrac_params_list[0]) >= 0:
             raise Exception(
-                "The 'start' paramater of projfrac-params must be negative to project into white matter."
+                "The 'start' parameter of projfrac-params must be negative to project into white matter."
             )
         if float(projfrac_params_list[1]) <= float(projfrac_params_list[0]):
             raise Exception(
-                "The 'stop' paramater of projfrac-params must be greater than the 'start' parameter."
+                "The 'stop' parameter of projfrac-params must be greater than the 'start' parameter."
             )
         if float(projfrac_params_list[-1]) <= 0:
             raise Exception(
-                "The 'delta' paramater of projfrac-params must be positive to iterate correctly."
+                "The 'delta' parameter of projfrac-params must be positive to iterate correctly."
             )
 
     # Define and prepare registration
@@ -341,7 +341,7 @@ def extractor(
             tck_file = tract
 
         ### Run MRtrix Tract Extraction ###
-        print("\n Extracing the sub-bundle \n")
+        print("\n Extracting the sub-bundle \n")
         fsub_bundle = extract_tck_mrtrix(
             tck_file,
             rois_atlas_in,
@@ -468,7 +468,7 @@ def extractor(
             ref_anat = img_viz
             show_anat = True
 
-        # Make a picture for each hemisphere passed in, if saggital view
+        # Make a picture for each hemisphere passed in, if sagittal view
         if hemi == None:
             hemi_list = ["lh"]
         else:

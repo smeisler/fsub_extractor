@@ -38,7 +38,7 @@ def streamline_scalar(
     scalar_paths: str
         Comma-delimited paths of scalars (.nii.gz) to analyze
     scalar_names: str
-        Comma-delimited paths of scalar namess
+        Comma-delimited paths of scalar names
     n_points: int
         Number of points to use in tract profiles
     out_dir: str
