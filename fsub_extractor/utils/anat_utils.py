@@ -221,9 +221,9 @@ def convert_to_mrtrix_reg(reg_in, mrtrix_reg_out, reg_in_type="itk", overwrite=T
     Parameters
     ==========
     reg_in: str
-            Path to input registation
+            Path to input registration
     mrtrix_reg_out: str
-            Where to save output registation
+            Where to save output registration
     reg_type: str
             Format of input registration. Currently only ANTs/ITK is supported.
     overwrite: bool

@@ -23,7 +23,7 @@ def visualize_sub_bundles(
     show_anat=False,
     axial_offset=0,
     saggital_offset=0,
-    camera_angle="saggital",
+    camera_angle="sagittal",
     hemi="lh",
 ):
     """Takes in tck and nifti files and makes a fury visualization
@@ -45,10 +45,10 @@ def visualize_sub_bundles(
     show_anat (Optional): Whether to overlay anatomy on the figure (default = False)
     axial_offset (Optional): Where to display axial slice (-1,1) where -1 is bottom of image and 1 is top.
         (default = 0, which is the middle of the image)
-    saggital_offset (Optional): Where to display saggital slice (-1,1) where -1 is left of image and 1 is right.
+    saggital_offset (Optional): Where to display sagittal slice (-1,1) where -1 is left of image and 1 is right.
         (default = 0, which is the middle of the image)
     camera_angle (Optional): Angle for screenshot ('saggital' (default) or 'axial')
-    hemi (Optional): For saggital picture, what hemisphere to view from. Accepts either 'lh' or 'rh'.
+    hemi (Optional): For sagittal picture, what hemisphere to view from. Accepts either 'lh' or 'rh'.
 
     Outputs
     =======
@@ -123,7 +123,7 @@ def visualize_sub_bundles(
         # add to figure
         figure.add(slice_actor)
 
-        # make a copy to make a saggital slice
+        # make a copy to make a sagittal slice
         saggital_actor = slice_actor.copy()
 
         # calculate where to display the image based on the offset
@@ -137,7 +137,7 @@ def visualize_sub_bundles(
 
     cam = figure.GetActiveCamera()
     cam.SetViewUp(0, 0, 0)
-    if camera_angle == "saggital":
+    if camera_angle == "sagittal":
         if hemi == "lh":
             cam.Yaw(270)
             cam.Roll(90)
@@ -238,7 +238,7 @@ def define_slice_actor(reference_anatomy, view="axial", offset=0):
     if view == "axial":
         offset = (slice_actor.shape[1] - (slice_actor.shape[1] // 2)) * offset
         slice_actor.display(None, None, slice_actor.shape[1] // 2 + int(offset))
-    if view == "saggital":
+    if view == "sagittal":
         offset = (slice_actor.shape[0] - (slice_actor.shape[0] // 2)) * offset
         slice_actor.display(slice_actor.shape[0] // 2 + int(offset), None, None)
 
@@ -250,13 +250,13 @@ def visualize_bundles(
     interactive,
     slice_actor=None,
     roi_actor=None,
-    camera_angle="saggital",
+    camera_angle="sagittal",
     hemi="lh",
     filename=None,
 ):
 
     """Takes in streamline actor, optional roi actor and slice actors
-    and ouputs a fury scene.
+    and outputs a fury scene.
 
     Parameters
     ==========
@@ -293,7 +293,7 @@ def visualize_bundles(
     cam = figure.GetActiveCamera()
     cam.SetViewUp(0, 0, 0)
 
-    if camera_angle == "saggital":
+    if camera_angle == "sagittal":
         if hemi == "lh":
             cam.Yaw(270)
             cam.Roll(90)
