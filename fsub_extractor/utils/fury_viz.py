@@ -253,8 +253,7 @@ def visualize_bundles(
     roi_actor=None,
     hemi="lh",
     roll_val=0,
-    pitch_val=0,
-    yaw_val=0,
+    camera_angle="sagittal",
     filename=None,
 ):
 
@@ -268,8 +267,7 @@ def visualize_bundles(
     hemi = hemisphere (default: 'lh')
     roi_actor: list of fury roi actors (e.g., [output] of define roi_actor)
     slice_actor: list fury slice actors (e.g., [output] of define_slice_actor)
-    roll_val: roll value for camera angle (default 0)
-    yaw_val: yaw value for camera angle (default 0)
+    camera_angle: view for camera ("sagittal" or "axial", default = "sagittal")
     filename: fullpath to save the image (e.g., .png)
 
     note: for plotting multiple streamlines, rois, or slices the function
@@ -296,8 +294,14 @@ def visualize_bundles(
 
     cam = figure.GetActiveCamera()
     cam.SetViewUp(0, 0, 0)
-    cam.Yaw(yaw_val)
-    cam.Roll(roll_val)
+    
+    if camera_angle == "sagittal":
+        if hemi == "lh":
+            cam.Yaw(270)
+            cam.Roll(90)
+        if hemi == "rh":
+            cam.Yaw(90)
+            cam.Roll(270)
 
     if interactive:
         window.show(figure)
