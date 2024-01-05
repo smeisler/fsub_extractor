@@ -22,7 +22,7 @@ def visualize_sub_bundles(
     interactive=False,
     show_anat=False,
     axial_offset=0,
-    saggital_offset=0,
+    sagittal_offset=0,
     camera_angle="sagittal",
     hemi="lh",
 ):
@@ -45,7 +45,7 @@ def visualize_sub_bundles(
     show_anat (Optional): Whether to overlay anatomy on the figure (default = False)
     axial_offset (Optional): Where to display axial slice (-1,1) where -1 is bottom of image and 1 is top.
         (default = 0, which is the middle of the image)
-    saggital_offset (Optional): Where to display sagittal slice (-1,1) where -1 is left of image and 1 is right.
+    sagittal_offset (Optional): Where to display sagittal slice (-1,1) where -1 is left of image and 1 is right.
         (default = 0, which is the middle of the image)
     camera_angle (Optional): Angle for screenshot ('saggital' (default) or 'axial')
     hemi (Optional): For sagittal picture, what hemisphere to view from. Accepts either 'lh' or 'rh'.
@@ -63,7 +63,7 @@ def visualize_sub_bundles(
     fsub_streamlines = fsub_streamlines.streamlines
 
     # Repeat the color matrix for each streamline (fsub)
-    n_fsub_streamlines = np.shape(fsub_streamlines)[0]
+    n_fsub_streamlines = len(fsub_streamlines)
     fsub_color = np.array([fsub_color])
     fsub_color = np.repeat(fsub_color, n_fsub_streamlines, axis=0)
 
@@ -88,7 +88,7 @@ def visualize_sub_bundles(
         orig_streamlines = orig_streamlines.streamlines
 
         # Repeat the color matrix for each streamline (orig)
-        n_orig_streamlines = np.shape(orig_streamlines)[0]
+        n_orig_streamlines = len(orig_streamlines)
         orig_color = np.array([orig_color])
         orig_color = np.repeat(orig_color, n_orig_streamlines, axis=0)
 
@@ -124,16 +124,16 @@ def visualize_sub_bundles(
         figure.add(slice_actor)
 
         # make a copy to make a sagittal slice
-        saggital_actor = slice_actor.copy()
+        sagittal_actor = slice_actor.copy()
 
         # calculate where to display the image based on the offset
-        saggital_offset = (
-            saggital_actor.shape[0] - (saggital_actor.shape[0] // 2)
-        ) * saggital_offset
-        saggital_actor.display(
-            saggital_actor.shape[0] // 2 + int(saggital_offset), None, None
+        sagittal_offset = (
+            sagittal_actor.shape[0] - (sagittal_actor.shape[0] // 2)
+        ) * sagittal_offset
+        sagittal_actor.display(
+            sagittal_actor.shape[0] // 2 + int(sagittal_offset), None, None
         )
-        figure.add(saggital_actor)
+        figure.add(sagittal_actor)
 
     cam = figure.GetActiveCamera()
     cam.SetViewUp(0, 0, 0)
@@ -152,13 +152,14 @@ def visualize_sub_bundles(
     window.record(figure, out_path=(fname), size=(1200, 900))
 
 
-def define_streamline_actor(tck, reference_anatomy, color):
+def define_streamline_actor(tck, reference_anatomy, color,opacity=1):
     """Takes in tck reference anatomy files and outputs a fury streamline actor.
     Parameters
     ==========
     tck: streamline to plot (.tck)
     reference_anatomy: Reference anatomy (.nii.gz)
     color = color to plot streamlines as ([R,B,G])
+    opacity = how opaque to plot the streamlines (0-1)
 
     Outputs
     =======
@@ -172,13 +173,13 @@ def define_streamline_actor(tck, reference_anatomy, color):
     streamlines = streamlines.streamlines
 
     # get number of streamlines in order to make them the same color
-    n_streamlines = np.shape(streamlines)[0]
+    n_streamlines = len(streamlines)
     color = np.array([color])
     color = np.repeat(color, n_streamlines, axis=0)
 
     # make the streamline actor
     if n_streamlines > 0:
-        streamlines_actor = actor.line(streamlines, color, opacity=0.1)
+        streamlines_actor = actor.line(streamlines, color, opacity=opacity)
     else:
         streamlines_actor = None
     return streamlines_actor
@@ -250,8 +251,9 @@ def visualize_bundles(
     interactive,
     slice_actor=None,
     roi_actor=None,
-    camera_angle="sagittal",
     hemi="lh",
+    roll_val=0,
+    camera_angle="sagittal",
     filename=None,
 ):
 
@@ -262,10 +264,10 @@ def visualize_bundles(
     ==========
     streamline_actor: list of fury streamline actors (e.g., [output] of define_streamline_actor)
     interactive: whether you want an interactive window to pop up
-    camera_angle: angle of the camera (options: 'saggital' or 'axial', default: 'saggital')
     hemi = hemisphere (default: 'lh')
     roi_actor: list of fury roi actors (e.g., [output] of define roi_actor)
     slice_actor: list fury slice actors (e.g., [output] of define_slice_actor)
+    camera_angle: view for camera ("sagittal" or "axial", default = "sagittal")
     filename: fullpath to save the image (e.g., .png)
 
     note: for plotting multiple streamlines, rois, or slices the function
@@ -292,7 +294,7 @@ def visualize_bundles(
 
     cam = figure.GetActiveCamera()
     cam.SetViewUp(0, 0, 0)
-
+    
     if camera_angle == "sagittal":
         if hemi == "lh":
             cam.Yaw(270)
