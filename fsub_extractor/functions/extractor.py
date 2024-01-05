@@ -30,6 +30,7 @@ def extractor(
     exclude_mask,
     include_mask,
     streamline_mask,
+    reg_anat,
     fs2dwi,
     dwi2fs,
     reg_type,
@@ -129,8 +130,31 @@ def extractor(
                 "The 'delta' parameter of projfrac-params must be positive to iterate correctly."
             )
 
+    ### Pre-checks are over, begin the processing!
+
+    # Make output folders if they do not exist, and define the naming convention
+    anat_out_dir = op.join(out_dir, subject, "anat")
+    dwi_out_dir = op.join(out_dir, subject, "dwi")
+    func_out_dir = op.join(out_dir, subject, "func")
+    os.makedirs(anat_out_dir, exist_ok=True)
+    os.makedirs(dwi_out_dir, exist_ok=True)
+    os.makedirs(func_out_dir, exist_ok=True)
+
     # Define and prepare registration
-    if fs2dwi == None and dwi2fs == None:
+    if reg_anat != None:
+        t1 = reg_anat.split(",")[0]
+        t1_mask = reg_anat.split(",")[1]
+        reg_invert = False
+        reg = calculate_fs2dwi_reg(
+            subject,
+            anat_out_dir,
+            anat_out_dir,
+            fs_dir,
+            t1,
+            t1_mask,
+            overwrite=overwrite,
+        )
+    elif fs2dwi == None and dwi2fs == None:
         reg = None
         reg_invert = None
         reg_type = None
@@ -154,16 +178,6 @@ def extractor(
         )
 
     # XX. Make sure FS license is valid [TODO: HOW??]
-
-    ### Pre-checks are over, begin the processing!
-
-    # Make output folders if they do not exist, and define the naming convention
-    anat_out_dir = op.join(out_dir, subject, "anat")
-    dwi_out_dir = op.join(out_dir, subject, "dwi")
-    func_out_dir = op.join(out_dir, subject, "func")
-    os.makedirs(anat_out_dir, exist_ok=True)
-    os.makedirs(dwi_out_dir, exist_ok=True)
-    os.makedirs(func_out_dir, exist_ok=True)
 
     # Prepare registration, if needed
     if reg != None and reg_type != "mrtrix":

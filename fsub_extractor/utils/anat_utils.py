@@ -1,5 +1,6 @@
 import os.path as op
 import os
+import shlex
 from fsub_extractor.utils.system_utils import *
 
 
@@ -144,7 +145,6 @@ def get_pial_surf(
     anat_out_dir=os.getcwd(),
     overwrite=True,
 ):
-
     """Returns volumetric mask of pial surface
 
     Parameters
@@ -243,6 +243,124 @@ def convert_to_mrtrix_reg(reg_in, mrtrix_reg_out, reg_in_type="itk", overwrite=T
         transformconvert,
         reg_in,
         reg_fmt_string,
+        mrtrix_reg_out,
+    ]
+
+    if overwrite:
+        cmd_transformconvert += ["-force"]
+    else:
+        overwrite_check(mrtrix_reg_out)
+
+    run_command(cmd_transformconvert)
+
+    return mrtrix_reg_out
+
+
+def calculate_fs2dwi_reg(
+    subject, outdir, scratch_dir, fs_dir, t1, t1_mask, overwrite=True
+):
+    """Makes an LTA convert file for mapping between FreeSurfer and DWI space
+
+    Parameters
+    ==========
+    subject: str
+            Subject name as found in FreeSurfer subjects directory.
+    outdir: str
+            Path to output directory.
+    scratch_dir: str
+            Path to scratch directory.
+    fs_dir: str
+            Path to FreeSurfer subjects directory.
+    t1: str
+            Path to T1 image in DWI space (NIfTI).
+    t1_mask: str
+            Path to T1 brain mask image in DWI space (NIfTI).
+    overwrite: bool
+            Whether to allow overwriting outputs
+
+    Outputs
+    =======
+    Function creates and returns path to MRTrix-readable registration file for mapping between FreeSurfer and DWI space
+    """
+
+    # Start by converting FS brain from .mgz to .nii
+    mrconvert = find_program("mrconvert")
+    fs_brain_path = op.join(fs_dir, subject, "mri", "brain.mgz")  # Input
+    fs_brain_nii_out = op.join(scratch_dir, f"{subject}_fs_brain.nii")  # Output
+    cmd_mrconvert = [mrconvert, "-stride", "-1,-2,3", fs_brain_path, fs_brain_nii_out]
+
+    if overwrite:
+        cmd_mrconvert += ["-force"]
+    else:
+        overwrite_check(fs_brain_nii_out)
+
+    run_command(cmd_mrconvert)
+
+    # Perform the registration
+    antsRegistration = find_program("antsRegistration")
+    cmd_antsRegistration = [
+        antsRegistration,
+        "--collapse-output-transforms",
+        "1",
+        "--dimensionality",
+        "3",
+        "--float",
+        "0",
+        "--initial-moving-transform",
+        f"[{t1},{fs_brain_nii_out},1]",
+        "--initialize-transforms-per-stage",
+        "0",
+        "--interpolation",
+        "BSpline",
+        "--output",
+        f"[{scratch_dir}/transform,{scratch_dir}/transform_Warped.nii.gz]",
+        "--transform",
+        "Rigid[0.1]",
+        "--metric",
+        f"Mattes[{t1},{fs_brain_nii_out},1,32,Random,0.25]",
+        "--convergence",
+        "[1000x500x250x100,1e-06,10]",
+        "--smoothing-sigmas",
+        "3.0x2.0x1.0x0.0mm",
+        "--shrink-factors",
+        "8x4x2x1",
+        "--use-histogram-matching",
+        "0",
+        "--masks",
+        f"[{t1_mask},NULL]",
+        "--winsorize-image-intensities",
+        "[0.002,0.998]",
+        "--write-composite-transform",
+        "0",
+    ]
+
+    if overwrite == False:
+        overwrite_check(f"{scratch_dir}/transform_Warped.nii.gz")
+
+    run_command(cmd_antsRegistration)
+
+    # Convert ANTs .mat transform to .txt, and rename it
+    ConvertTransformFile = find_program("ConvertTransformFile")
+    reg_txt = f"{scratch_dir}/{subject}_from-FS_to-T1wACPC_mode-image_xfm.txt"
+    cmd_ConvertTransformFile = [
+        ConvertTransformFile,
+        "3",
+        f"{scratch_dir}/transform0GenericAffine.mat",
+        reg_txt,
+    ]
+
+    if overwrite == False:
+        overwrite_check(reg_txt)
+
+    run_command(cmd_ConvertTransformFile)
+
+    # Convert ANTs transform to MRTrix compatible transform, save out
+    transformconvert = find_program("transformconvert")
+    mrtrix_reg_out = f"{outdir}/{subject}_from-FS_to-DWI_mode-image_xfm.txt"
+    cmd_transformconvert = [
+        transformconvert,
+        reg_txt,
+        "itk_import",
         mrtrix_reg_out,
     ]
 
