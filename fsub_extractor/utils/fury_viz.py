@@ -152,13 +152,14 @@ def visualize_sub_bundles(
     window.record(figure, out_path=(fname), size=(1200, 900))
 
 
-def define_streamline_actor(tck, reference_anatomy, color):
+def define_streamline_actor(tck, reference_anatomy, color,opacity=1):
     """Takes in tck reference anatomy files and outputs a fury streamline actor.
     Parameters
     ==========
     tck: streamline to plot (.tck)
     reference_anatomy: Reference anatomy (.nii.gz)
     color = color to plot streamlines as ([R,B,G])
+    opacity = how opaque to plot the streamlines (0-1)
 
     Outputs
     =======
@@ -178,7 +179,7 @@ def define_streamline_actor(tck, reference_anatomy, color):
 
     # make the streamline actor
     if n_streamlines > 0:
-        streamlines_actor = actor.line(streamlines, color, opacity=1)
+        streamlines_actor = actor.line(streamlines, color, opacity=opacity)
     else:
         streamlines_actor = None
     return streamlines_actor
@@ -250,8 +251,10 @@ def visualize_bundles(
     interactive,
     slice_actor=None,
     roi_actor=None,
-    camera_angle="sagittal",
     hemi="lh",
+    roll_val=90,
+    pitch_val=0,
+    yaw_val=270,
     filename=None,
 ):
 
@@ -262,10 +265,12 @@ def visualize_bundles(
     ==========
     streamline_actor: list of fury streamline actors (e.g., [output] of define_streamline_actor)
     interactive: whether you want an interactive window to pop up
-    camera_angle: angle of the camera (options: 'sagittal' or 'axial', default: 'sagittal')
     hemi = hemisphere (default: 'lh')
     roi_actor: list of fury roi actors (e.g., [output] of define roi_actor)
     slice_actor: list fury slice actors (e.g., [output] of define_slice_actor)
+    roll_val: roll value for camera angle (default 90)
+    pitch_val: pitch value for camera angle (default 0)
+    yaw_val: yaw value for camera angle (default 270)
     filename: fullpath to save the image (e.g., .png)
 
     note: for plotting multiple streamlines, rois, or slices the function
@@ -292,14 +297,9 @@ def visualize_bundles(
 
     cam = figure.GetActiveCamera()
     cam.SetViewUp(0, 0, 0)
-
-    if camera_angle == "sagittal":
-        if hemi == "lh":
-            cam.Yaw(270)
-            cam.Roll(90)
-        if hemi == "rh":
-            cam.Yaw(90)
-            cam.Roll(270)
+    cam.Roll(roll_val)
+    cam.Pitch(pitch_val)
+    cam.Yaw(yaw_val)
 
     if interactive:
         window.show(figure)
