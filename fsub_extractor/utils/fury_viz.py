@@ -252,9 +252,9 @@ def visualize_bundles(
     slice_actor=None,
     roi_actor=None,
     hemi="lh",
-    roll_val=90,
+    roll_val=0,
     pitch_val=0,
-    yaw_val=270,
+    yaw_val=0,
     filename=None,
 ):
 
