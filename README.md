@@ -50,6 +50,13 @@ This software was conceived of during NeuroHackademy 2022.
             <br />
             <sub><b>McKenzie Paige Hagen</b></sub>
         </a>
-    </td></tr>
+    </td>
+     <td align="center">
+     <a href="https://github.com/tashrifbillah">
+         <img src="https://avatars.githubusercontent.com/u/35086881?v=4" width="100;" alt="tashrifbillah"/>
+         <br />
+         <sub><b>Tashrif Billah</b></sub>
+     </a>
+     </td></tr>
 </table>
 <!-- readme: contributors -end -->
